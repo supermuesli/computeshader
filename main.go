@@ -50,35 +50,50 @@ func main() {
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version", version)
 
-	// Configure the vertex and fragment shaders
-	program, err := newProgram(vertexShader, fragmentShader)
+	// Configure the compute shader
+	program, err := newProgram(computeShader)
 	if err != nil {
 		panic(err)
 	}
 
-	gl.UseProgram(program)
 
-	// Configure the vertex data
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(triVerts)*4, gl.Ptr(triVerts), gl.STATIC_DRAW)
+	// dimensions of the image
+	var tex_output uint32
+	gl.GenTextures(1, &tex_output)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, tex_output)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
+	gl.BindImageTexture(0, tex_output, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 
 	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
 	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+
+	gl.UseProgram(program)
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
 	previousTime := glfw.GetTime()
 
 	for !window.ShouldClose() {
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		// dispatch shader
+		gl.UseProgram(program)
+		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
+		// make sure writing to image has finished before read
+		gl.MemoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
+
+		// drawing pass
+		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		gl.Clear(gl.COLOR_BUFFER_BIT)
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, tex_output)
+		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
+			
 		// Update
 		time := glfw.GetTime()
 		elapsed := time - previousTime
@@ -86,10 +101,6 @@ func main() {
 		fmt.Println(1.0/elapsed, "fps")
 
 		
-		// Render
-		gl.UseProgram(program)
-		gl.BindVertexArray(vao)
-
 		gl.DrawArrays(gl.TRIANGLES, 0, 6*2*3)
 
 		// Maintenance
@@ -98,21 +109,15 @@ func main() {
 	}
 }
 
-func newProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
-	if err != nil {
-		return 0, err
-	}
-
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
+func newProgram(computeShaderSource string) (uint32, error) {
+	computeShader, err := compileShader(computeShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
 		return 0, err
 	}
 
 	program := gl.CreateProgram()
 
-	gl.AttachShader(program, vertexShader)
-	gl.AttachShader(program, fragmentShader)
+	gl.AttachShader(program, computeShader)
 	gl.LinkProgram(program)
 
 	var status int32
@@ -127,8 +132,7 @@ func newProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error)
 		return 0, fmt.Errorf("failed to link program: %v", log)
 	}
 
-	gl.DeleteShader(vertexShader)
-	gl.DeleteShader(fragmentShader)
+	gl.DeleteShader(computeShader)
 
 	return program, nil
 }
@@ -156,31 +160,23 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 	return shader, nil
 }
 
-
-var vertexShader = `
-#version 450 core
-in vec3 vert;
-out vec3 pos;
-void main() {
-    gl_Position = vec4(pos, 1.0);
-	pos = vert;
-}
-` + "\x00"
-
-var fragmentShader = `
-#version 450 core
-in vec3 pos;
-out vec4 outCol;
-void main() {
-    outCol = vec4(pos, 1.0);
-}
-` + "\x00"
-
 var computeShader = `
 #version 450 core
+layout(local_size_x = 1, local_size_y = 1) in
+layout(rgba32f, binding = 0) uniform image2D img_output
 
 void main() {
+	// base pixel colour for image
+	vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0)
+	// get index in global work group i.e x,y position
+	ivec2 pixel_coords = ivec2(gl.GlobalInvocationID.xy)
 
+	//
+	// interesting stuff happens here later
+	//
+
+	// output to a specific pixel in the image
+	imageStore(img_output, pixel_coords, pixel)
 }
 ` + "\x00"
 
@@ -191,55 +187,4 @@ var triVerts = []float32 {
 	-1.0, -1.0, 0.0,
 	-0.7, -0.7, 0.0,
 	-0.7,  1.0, 0.0,
-}
-
-var cubeVertices = []float32 {
-	//  X, Y, Z, U, V
-	// Bottom
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-
-	// Top
-	-1.0, 1.0, -1.0, 0.0, 0.0,
-	-1.0, 1.0, 1.0, 0.0, 1.0,
-	1.0, 1.0, -1.0, 1.0, 0.0,
-	1.0, 1.0, -1.0, 1.0, 0.0,
-	-1.0, 1.0, 1.0, 0.0, 1.0,
-	1.0, 1.0, 1.0, 1.0, 1.0,
-
-	// Front
-	-1.0, -1.0, 1.0, 1.0, 0.0,
-	1.0, -1.0, 1.0, 0.0, 0.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-	1.0, -1.0, 1.0, 0.0, 0.0,
-	1.0, 1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-
-	// Back
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	-1.0, 1.0, -1.0, 0.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	-1.0, 1.0, -1.0, 0.0, 1.0,
-	1.0, 1.0, -1.0, 1.0, 1.0,
-
-	// Left
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, -1.0, 1.0, 0.0,
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-	-1.0, 1.0, -1.0, 1.0, 0.0,
-
-	// Right
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, 1.0, -1.0, 0.0, 0.0,
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	1.0, 1.0, -1.0, 0.0, 0.0,
-	1.0, 1.0, 1.0, 0.0, 1.0,
 }
