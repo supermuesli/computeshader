@@ -35,7 +35,7 @@ func main() {
 	glfw.WindowHint(glfw.ContextVersionMinor, 5)
 	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
 	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := glfw.CreateWindow(windowWidth, windowHeight, "Cube", nil, nil)
+	window, err := glfw.CreateWindow(windowWidth, windowHeight, "compute shady boi", nil, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -56,19 +56,15 @@ func main() {
 		panic(err)
 	}
 
+	// define ssbo for triangles
+	var ssbo uint32
+	gl.GenBuffers(1, &ssbo)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(triVerts)*4, gl.Ptr(triVerts), gl.STATIC_COPY)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, ssbo);
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0); // unbind
 
-	// dimensions of the image
-	var tex_output uint32
-	gl.GenTextures(1, &tex_output)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, tex_output)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.BindImageTexture(0, tex_output, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
-
+	// pipe triangles from vao to uniform named "vert" in compute shader
 	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
 	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
@@ -90,9 +86,8 @@ func main() {
 		// drawing pass
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, tex_output)
-		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+		gl.DrawArrays(gl.TRIANGLES, 0, 3)
 			
 		// Update
 		time := glfw.GetTime()
@@ -110,7 +105,7 @@ func main() {
 }
 
 func newProgram(computeShaderSource string) (uint32, error) {
-	computeShader, err := compileShader(computeShaderSource, gl.VERTEX_SHADER)
+	computeShader, err := compileShader(computeShaderSource, gl.COMPUTE_SHADER)
 	if err != nil {
 		return 0, err
 	}
@@ -162,21 +157,29 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 
 var computeShader = `
 #version 450 core
-layout(local_size_x = 1, local_size_y = 1) in
-layout(rgba32f, binding = 0) uniform image2D img_output
+layout(local_size_x = 1, local_size_y = 1) in;
+layout(std430, binding = 3) buffer triVerts
+{
+	vec3 vertex[];
+};
+
+// The camera specification
+uniform vec3 eye;
+uniform vec3 ray00;
+uniform vec3 ray10;
+uniform vec3 ray01;
+uniform vec3 ray11;
+
+struct tri {
+	vec3 a;
+	vec3 b;
+	vec3 c;
+};
+
+ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
 
 void main() {
-	// base pixel colour for image
-	vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0)
-	// get index in global work group i.e x,y position
-	ivec2 pixel_coords = ivec2(gl.GlobalInvocationID.xy)
-
-	//
-	// interesting stuff happens here later
-	//
-
-	// output to a specific pixel in the image
-	imageStore(img_output, pixel_coords, pixel)
+	
 }
 ` + "\x00"
 
