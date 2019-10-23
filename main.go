@@ -50,12 +50,6 @@ func main() {
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version", version)
 
-	// Configure the compute shader
-	program, err := newProgram(computeShader)
-	if err != nil {
-		panic(err)
-	}
-
 	// define ssbo for triangles
 	var ssbo uint32
 	gl.GenBuffers(1, &ssbo)
@@ -64,12 +58,47 @@ func main() {
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, ssbo);
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0); // unbind
 
-	// pipe triangles from vao to uniform named "vert" in compute shader
-	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
-	gl.EnableVertexAttribArray(vertAttrib)
-	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	// define texture to draw framebuffer onto
+	var tex uint32
+	gl.GenTextures(1, &tex);
+	gl.BindTexture(gl.TEXTURE_2D, tex);
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA32F, gl.FLOAT, nil);
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+	gl.GenerateMipmap(gl.TEXTURE_2D);
+
+	// define vao for full screen quad to render 
+	// texture onto
+	var vao uint32
+	gl.GenVertexArrays(1, &vao)
+	gl.BindVertexArray(vao)
+	var vbo uint32
+	gl.GenBuffers(1, &vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, 2*4, gl.Ptr([]float32{
+		-1.0, -1.0, 0.0,
+		-1.0, 1.0, 0.0,
+		1.0, -1.0, 0.0,
+		1.0, 1.0, 0.0,
+	}), gl.STATIC_DRAW)
+
+	/* Specify that our coordinate data is going into attribute index 1, and contains two floats per vertex */
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 0, gl.PtrOffset(0));
+	/* Enable attribute index 1 as being used */
+	gl.EnableVertexAttribArray(1);
+
+	// Configure the compute shader
+	program, err := newProgram(computeShader)
+	if err != nil {
+		panic(err)
+	}
 
 	gl.UseProgram(program)
+
+	// pipe triangles from vao to uniform named "vert" in compute shader
+	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
+	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 3*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(vertAttrib)
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -77,7 +106,10 @@ func main() {
 
 	for !window.ShouldClose() {
 		// dispatch shader
+		gl.BindImageTexture(0, tex, 0, false, 0, gl.READ_WRITE, gl.RGBA);
 		gl.UseProgram(program)
+		gl.Uniform1i(gl.GetUniformLocation(program, gl.Str("tex\x00")), 0);
+
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
 		// make sure writing to image has finished before read
@@ -87,7 +119,7 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 
-		gl.DrawArrays(gl.TRIANGLES, 0, 3)
+		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 			
 		// Update
 		time := glfw.GetTime()
@@ -157,11 +189,12 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 
 var computeShader = `
 #version 450 core
-layout(local_size_x = 1, local_size_y = 1) in;
 layout(std430, binding = 3) buffer triVerts
 {
 	vec3 vertex[];
 };
+layout(local_size_x = 1, local_size_y = 1) in;
+layout (rgba32f)  uniform image2D tex;
 
 // The camera specification
 uniform vec3 eye;
@@ -179,7 +212,7 @@ struct tri {
 ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
 
 void main() {
-	
+	imageStore(tex, gid, vec4(1.0, 1.0, 1.0, 1.0));
 }
 ` + "\x00"
 
