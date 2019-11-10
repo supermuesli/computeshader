@@ -1,9 +1,4 @@
-// Copyright 2014 The go-gl Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Renders a textured spinning cube using GLFW 3 and OpenGL 4.1 core forward-compatible profile.
-package main // import "github.com/go-gl/example/gl41core-cube"
+package main
 
 import (
 	"fmt"
@@ -21,7 +16,7 @@ const windowWidth = 800
 const windowHeight = 600
 
 func init() {
-	// GLFW event handling must run on the main OS thread
+	// glfw event handling must run on the main OS thread
 	runtime.LockOSThread()
 }
 
@@ -43,7 +38,7 @@ func main() {
 	window.MakeContextCurrent()
 	glfw.SwapInterval(0)
 
-	// Initialize Glow
+	// init glow
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
@@ -84,14 +79,14 @@ func main() {
 	fmt.Printf("max local work group invocations %i\n", work_grp_inv);
 	fmt.Println("***-----------------------------------------------------------------------------***")
 
-	// Configure the compute shader
+	// configure compute shader
 	computeShaderProgram, err := newComputeShaderProgram(computeShader)
 	if err != nil {
 		panic(err)
 	}
 
-	// Configure the vao quad shader
-	vaoProgram, err := newVaoProgram(vertexShader, fragmentShader)
+	// configure fullscreen quad shader
+	quadProgram, err := newQuadProgram(vertexShader, fragmentShader)
 	if err != nil {
 		panic(err)
 	}
@@ -120,8 +115,8 @@ func main() {
 	gl.BufferData(gl.ARRAY_BUFFER, len(texCoords)*4, gl.Ptr(texCoords), gl.STATIC_DRAW)
 	
 	// set vao
-	gl.VertexAttribPointer(quadVbo, 2, gl.FLOAT, false, 2*4, gl.PtrOffset(0))
-	gl.EnableVertexAttribArray(quadVbo)
+	gl.VertexAttribPointer(quadVbo, 2, gl.FLOAT, false, 2*4, nil)
+	gl.EnableVertexAttribArray(0)
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -142,20 +137,20 @@ func main() {
 
 		// render to screen
 		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.UseProgram(vaoProgram)
+		gl.UseProgram(quadProgram)
 		gl.BindVertexArray(quadVao)
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 		
-		// Update
+		// evaluate fps
 		time := glfw.GetTime()
 		elapsed := time - previousTime
 		//fmt.Println(int(1.0/elapsed), "FPS")
 		_ = elapsed
 		previousTime = time
-		//fmt.Println(1.0/elapsed, "fps")
 
-		// Maintenance
+		// poll keyboard/mouse events
 		glfw.PollEvents()
+		
 		window.SwapBuffers()
 	}
 }
@@ -188,7 +183,7 @@ func newComputeShaderProgram(computeShaderSource string) (uint32, error) {
 	return program, nil
 }
 
-func newVaoProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
+func newQuadProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
 	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
 		return 0, err
@@ -260,7 +255,7 @@ var fragmentShader = `
 #version 450 core
 in vec2 coord;
 out vec4 finalCol;
-layout(binding = 0) uniform sampler2D img_output;
+uniform sampler2D img_output;
 void main() {
 	finalCol = texture(img_output, coord);
 }
@@ -286,18 +281,9 @@ void main() {
 }
 ` + "\x00"
 
-var triVerts = []float32 {
-	-0.5, -0.5, 0.0,
-	 0.0,  0.5, 0.0,
-	 0.5, -0.5, 0.0,
-	-1.0, -1.0, 0.0,
-	-0.7, -0.7, 0.0,
-	-0.7,  1.0, 0.0,
-}
-
 var texCoords = []float32 {
-	1.0, 1.0,
+	-1.0, -1.0,
 	 -1.0, 1.0,
 	 1.0,  -1.0,
-	-1.0, -1.0,
+	1.0, 1.0,
 }
