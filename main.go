@@ -65,43 +65,24 @@ func main() {
 		}, nil,
 	)
 
-	// define ssbo for triangles
-	var ssbo uint32
-	gl.GenBuffers(1, &ssbo)
-	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
-	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(triVerts)*4, gl.Ptr(triVerts), gl.STATIC_COPY)
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, ssbo)
-	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, 0) // unbind
+	// print max workgroup count/size/invocations
+	fmt.Println("***-----------------------------------------------------------------------------***")
+	var work_grp_cnt [3]int32
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
+	fmt.Printf("max global (total) work group size x:%i y:%i z:%i\n", work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2])
 
-	// define texture to draw framebuffer onto
-	var tex uint32
-	gl.GenTextures(1, &tex);
-	gl.BindTexture(gl.TEXTURE_2D, tex);
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil);
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-	gl.GenerateMipmap(gl.TEXTURE_2D);
+	var work_grp_size [3]int32
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+	fmt.Printf("max global (in one shader) work group sizes x:%i y:%i z:%i\n", work_grp_size[0], work_grp_size[1], work_grp_size[2])
 
-	// define vao, vbo for full screen quad to render 
-	// texture onto
-	var vao uint32
-	gl.GenVertexArrays(1, &vao)
-	gl.BindVertexArray(vao)
-
-	var vbo uint32
-	gl.GenBuffers(1, &vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, 2*4, gl.Ptr([]float32{
-		-1.0, -1.0, 0.0,
-		-1.0, 1.0, 0.0,
-		1.0, -1.0, 0.0,
-		1.0, 1.0, 0.0,
-	}), gl.STATIC_DRAW)
-
-	/* Specify that our coordinate data is going into attribute index 1, and contains two floats per vertex */
-	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 0, gl.Ptr(nil));
-	/* Enable attribute index 1 as being used */
-	gl.EnableVertexAttribArray(1);
+	var work_grp_inv int32
+	gl.GetIntegerv(gl.MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+	fmt.Printf("max local work group invocations %i\n", work_grp_inv);
+	fmt.Println("***-----------------------------------------------------------------------------***")
 
 	// Configure the compute shader
 	computeShaderProgram, err := newComputeShaderProgram(computeShader)
@@ -115,21 +96,32 @@ func main() {
 		panic(err)
 	}
 
-	// pipe triangles from vao to uniform named "vert" in compute shader
-	vertAttrib := uint32(gl.GetAttribLocation(computeShaderProgram, gl.Str("vert\x00")))
-	gl.VertexAttribPointer(vertAttrib, 3, gl.FLOAT, false, 3*4, gl.Ptr(&triVerts[0]))
-	gl.EnableVertexAttribArray(vertAttrib)
+	// define texture to draw framebuffer onto
+	var texOutput uint32
+	gl.GenTextures(1, &texOutput)
+	gl.ActiveTexture(gl.TEXTURE0)
+	gl.BindTexture(gl.TEXTURE_2D, texOutput)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
+	gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
+	
+	// define quad vao
+	var quadVao uint32
+	gl.GenVertexArrays(1, &quadVao)
+	gl.BindVertexArray(quadVao)
 
-	// pipe texcoord to uniform named "texcoord" in vertex shader
-	texcoordAttrib := uint32(gl.GetAttribLocation(vaoProgram, gl.Str("texcoord\x00")))
-	gl.VertexAttribPointer(texcoordAttrib, 2, gl.FLOAT, false, 2*4, gl.Ptr(&texCoords[0]))
-	gl.EnableVertexAttribArray(texcoordAttrib)
-
-	//texAttrib := uint32(gl.GetAttribLocation(computeShaderProgram, gl.Str("tex\x00")))
-
-	//ourtexAttrib := uint32(gl.GetAttribLocation(vaoProgram, gl.Str("ourTexture\x00")))
-	//gl.VertexAttribPointer(ourtexAttrib, 4, gl.FLOAT, false, 4*4, gl.Ptr(texAttrib))
-	//gl.EnableVertexAttribArray(ourtexAttrib)
+	// define quad vbo
+	var quadVbo uint32
+	gl.GenBuffers(1, &quadVbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, quadVbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(texCoords)*4, gl.Ptr(texCoords), gl.STATIC_DRAW)
+	
+	// set vao
+	gl.VertexAttribPointer(quadVbo, 2, gl.FLOAT, false, 2*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(quadVbo)
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -137,32 +129,34 @@ func main() {
 
 	for !window.ShouldClose() {
 		// dispatch shader
-		gl.BindImageTexture(0, tex, 0, false, 0, gl.READ_WRITE, gl.RGBA32F);
 		gl.UseProgram(computeShaderProgram)
-		gl.Uniform1i(gl.GetUniformLocation(computeShaderProgram, gl.Str("tex\x00")), 0);
-
+		location := gl.GetUniformLocation(computeShaderProgram, gl.Str("img_output\x00"))
+		gl.Uniform1i(location, 0)
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_2D, texOutput)
+		gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
 		// make sure writing to image has finished before read
 		gl.MemoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
 
-		gl.UseProgram(vaoProgram)
-		
-		// drawing pass
-		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+		// render to screen
 		gl.Clear(gl.COLOR_BUFFER_BIT)
-
+		gl.UseProgram(vaoProgram)
+		gl.BindVertexArray(quadVao)
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
-			
+		
 		// Update
 		time := glfw.GetTime()
 		elapsed := time - previousTime
+		//fmt.Println(int(1.0/elapsed), "FPS")
+		_ = elapsed
 		previousTime = time
-		fmt.Println(1.0/elapsed, "fps")
+		//fmt.Println(1.0/elapsed, "fps")
 
 		// Maintenance
-		window.SwapBuffers()
 		glfw.PollEvents()
+		window.SwapBuffers()
 	}
 }
 
@@ -254,40 +248,41 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 
 var vertexShader = `
 #version 450 core
-in vec3 pos;
-out vec4 col;
-out vec2 texcoord;
-uniform sampler2D ourTexture;
+in vec2 pos;
+out vec2 coord;
 void main() {
-	gl_Position = vec4(pos, 1.0);
-	col = vec4(pos, 1.0);
+	gl_Position = vec4(pos, 0.0, 1.0);
+	coord = 0.5 * pos + vec2(0.5, 0.5);
 }
 ` + "\x00"
 
 var fragmentShader = `
 #version 450 core
-in vec4 col;
-in vec2 texcoord;
+in vec2 coord;
 out vec4 finalCol;
-uniform sampler2D ourTexture;
+layout(binding = 0) uniform sampler2D img_output;
 void main() {
-	finalCol = texture(ourTexture, texcoord);
+	finalCol = texture(img_output, coord);
 }
 ` + "\x00"
 
 var computeShader = `
 #version 450 core
-layout(std430, binding = 3) buffer triVerts
-{
-	vec3 vertex[];
-};
 layout(local_size_x = 1, local_size_y = 1) in;
-layout (rgba32f)  uniform image2D tex;
-
+layout(rgba32f, binding = 0) uniform image2D img_output;
 
 void main() {
-	ivec2 gid = ivec2(gl_GlobalInvocationID.xy);
-	imageStore(tex, gid, vec4(1.0, 1.0, 1.0, 1.0));
+	// base pixel color for image
+	vec4 pixel = vec4(1.0, 0.0, 0.0, 1.0);
+	// get index in global work group i.e x,y position
+	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+	
+	//
+	// interesting stuff happens here later
+	//
+	
+	// output to a specific pixel in the image
+	imageStore(img_output, pixel_coords, pixel);
 }
 ` + "\x00"
 
