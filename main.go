@@ -128,7 +128,6 @@ func main() {
 		location := gl.GetUniformLocation(computeShaderProgram, gl.Str("img_output\x00"))
 		gl.Uniform1i(location, 0)
 		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, texOutput)
 		gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
@@ -139,6 +138,7 @@ func main() {
 		gl.Clear(gl.COLOR_BUFFER_BIT)
 		gl.UseProgram(quadProgram)
 		gl.BindVertexArray(quadVao)
+		gl.BindTexture(gl.TEXTURE_2D, texOutput)
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 		
 		// evaluate fps
