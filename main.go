@@ -94,7 +94,6 @@ func main() {
 	// define texture to draw framebuffer onto
 	var texOutput uint32
 	gl.GenTextures(1, &texOutput)
-	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, texOutput)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
@@ -102,7 +101,7 @@ func main() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
 	gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
-	
+
 	// define quad vao
 	var quadVao uint32
 	gl.GenVertexArrays(1, &quadVao)
@@ -112,11 +111,10 @@ func main() {
 	var quadVbo uint32
 	gl.GenBuffers(1, &quadVbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, quadVbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(texCoords)*4, gl.Ptr(texCoords), gl.STATIC_DRAW)
-	
-	// set vao
-	gl.VertexAttribPointer(quadVbo, 2, gl.FLOAT, false, 2*4, nil)
+	buf := [12]int8{-1, -1, 1, -1, 1, 1, 1, 1, -1, 1, -1, -1}
+	gl.BufferData(gl.ARRAY_BUFFER, 12, unsafe.Pointer(&buf[0]), gl.STATIC_DRAW)
 	gl.EnableVertexAttribArray(0)
+	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
@@ -125,9 +123,6 @@ func main() {
 	for !window.ShouldClose() {
 		// dispatch shader
 		gl.UseProgram(computeShaderProgram)
-		location := gl.GetUniformLocation(computeShaderProgram, gl.Str("img_output\x00"))
-		gl.Uniform1i(location, 0)
-		gl.ActiveTexture(gl.TEXTURE0)
 		gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
@@ -139,9 +134,8 @@ func main() {
 		gl.UseProgram(quadProgram)
 		gl.BindVertexArray(quadVao)
 		gl.BindTexture(gl.TEXTURE_2D, texOutput)
-		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
-		
-		// evaluate fps
+		gl.DrawArrays(gl.TRIANGLES, 0, 6)
+
 		time := glfw.GetTime()
 		elapsed := time - previousTime
 		//fmt.Println(int(1.0/elapsed), "FPS")
@@ -198,6 +192,7 @@ func newQuadProgram(vertexShaderSource, fragmentShaderSource string) (uint32, er
 
 	gl.AttachShader(program, vertexShader)
 	gl.AttachShader(program, fragmentShader)
+	gl.BindAttribLocation(program, 0, gl.Str("pos\x00"))
 	gl.LinkProgram(program)
 
 	var status int32
@@ -214,7 +209,7 @@ func newQuadProgram(vertexShaderSource, fragmentShaderSource string) (uint32, er
 
 	gl.DeleteShader(vertexShader)
 	gl.DeleteShader(fragmentShader)
-	
+
 	return program, nil
 }
 
@@ -280,10 +275,3 @@ void main() {
 	imageStore(img_output, pixel_coords, pixel);
 }
 ` + "\x00"
-
-var texCoords = []float32 {
-	-1.0, -1.0,
-	 -1.0, 1.0,
-	 1.0,  -1.0,
-	1.0, 1.0,
-}
