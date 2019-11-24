@@ -6,15 +6,16 @@ import (
 	"log"
 	"runtime"
 	"strings"
-
 	"github.com/go-gl/gl/v4.5-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"unsafe"
+	"github.com/supermuesli/computeshader/pkg/shaders"
 )
 
 const windowWidth = 800
 const windowHeight = 600
 
+// blabal the glaglagu
 func init() {
 	// glfw event handling must run on the main OS thread
 	runtime.LockOSThread()
@@ -80,13 +81,13 @@ func main() {
 	fmt.Println("***-----------------------------------------------------------------------------***")
 
 	// configure compute shader
-	computeShaderProgram, err := newComputeShaderProgram(computeShader)
+	computeShader, err := newComputeShader(shaders.computeSrc)
 	if err != nil {
 		panic(err)
 	}
 
 	// configure fullscreen quad shader
-	quadProgram, err := newQuadProgram(vertexShader, fragmentShader)
+	quadShader, err := newQuadShader(shaders.vertexSrc, shaders.FragmentSrc)
 	if err != nil {
 		panic(err)
 	}
@@ -122,8 +123,14 @@ func main() {
 
 	for !window.ShouldClose() {
 		// dispatch shader
-		gl.UseProgram(computeShaderProgram)
+		gl.UseProgram(computeShader)
+
+		// binds a single level of a texture to an image unit for the purpose of reading and writing it from shaders. 
+		// unit specifies the zero-based index of the image unit to which to bind the texture level. texture specifies 
+		// the name of an existing texture object to bind to the image unit. If texture is zero, then any existing 
+		// binding to the image unit is broken. level specifies the level of the texture to bind to the image unit.
 		gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
+		
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
 		// make sure writing to image has finished before read
@@ -131,9 +138,17 @@ func main() {
 
 		// render to screen
 		gl.Clear(gl.COLOR_BUFFER_BIT)
-		gl.UseProgram(quadProgram)
+		gl.UseProgram(quadShader)
 		gl.BindVertexArray(quadVao)
+		
+		// lets you create or use a named texture. Calling glBindTexture with target set to GL_TEXTURE_1D, 
+		// GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE, 
+		// GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_BUFFER, GL_TEXTURE_2D_MULTISAMPLE or 
+		// GL_TEXTURE_2D_MULTISAMPLE_ARRAY and texture set to the name of the new texture binds the texture 
+		// name to the target. When a texture is bound to a target, the previous binding for that target is
+		// automatically broken.
 		gl.BindTexture(gl.TEXTURE_2D, texOutput)
+		
 		gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
 		time := glfw.GetTime()
@@ -149,8 +164,8 @@ func main() {
 	}
 }
 
-func newComputeShaderProgram(computeShaderSource string) (uint32, error) {
-	computeShader, err := compileShader(computeShaderSource, gl.COMPUTE_SHADER)
+func newComputeShader(computeShaderSource string) (uint32, error) {
+	computeShader, err := compile(computeShaderSource, gl.COMPUTE_SHADER)
 	if err != nil {
 		return 0, err
 	}
@@ -177,13 +192,13 @@ func newComputeShaderProgram(computeShaderSource string) (uint32, error) {
 	return program, nil
 }
 
-func newQuadProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
+func newQuadShader(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
+	vertexShader, err := compile(vertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
 		return 0, err
 	}
 
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
+	fragmentShader, err := compile(fragmentShaderSource, gl.FRAGMENT_SHADER)
 	if err != nil {
 		return 0, err
 	}
@@ -213,7 +228,7 @@ func newQuadProgram(vertexShaderSource, fragmentShaderSource string) (uint32, er
 	return program, nil
 }
 
-func compileShader(source string, shaderType uint32) (uint32, error) {
+func compile(source string, shaderType uint32) (uint32, error) {
 	shader := gl.CreateShader(shaderType)
 
 	csources, free := gl.Strs(source)
@@ -235,44 +250,3 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 
 	return shader, nil
 }
-
-var vertexShader = `
-#version 450 core
-in vec2 pos;
-out vec2 coord;
-void main() {
-	gl_Position = vec4(pos, 0.0, 1.0);
-	coord = 0.5 * pos + vec2(0.5, 0.5);
-}
-` + "\x00"
-
-var fragmentShader = `
-#version 450 core
-in vec2 coord;
-out vec4 finalCol;
-uniform sampler2D img_output;
-void main() {
-	finalCol = texture(img_output, coord);
-}
-` + "\x00"
-
-var computeShader = `
-#version 450 core
-layout(local_size_x = 1, local_size_y = 1) in;
-layout(rgba32f, binding = 0) uniform image2D img_output;
-
-void main() {
-	// get index in global work group i.e x,y position
-	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
-	
-	// base pixel color for image
-	vec4 pixel = vec4(float(pixel_coords[0])/800, 0.0, 0.0, 1.0);
-
-	//
-	// interesting stuff happens here later
-	//
-	
-	// output to a specific pixel in the image
-	imageStore(img_output, pixel_coords, pixel);
-}
-` + "\x00"
