@@ -1,15 +1,15 @@
 package main
 
 import (
+	"github.com/go-gl/gl/v4.5-core/gl"
+	"github.com/go-gl/glfw/v3.2/glfw"
+	"github.com/supermuesli/computeshader/pkg/shaders"
+	"github.com/supermuesli/computeshader/internal/shaderutils"
 	"fmt"
 	_ "image/png"
 	"log"
 	"runtime"
-	"github.com/go-gl/gl/v4.5-core/gl"
-	"github.com/go-gl/glfw/v3.2/glfw"
 	"unsafe"
-	"github.com/supermuesli/computeshader/pkg/shaders"
-	"github.com/supermuesli/computeshader/internal/shaderutils"
 )
 
 const (
@@ -93,16 +93,16 @@ func main() {
 		panic(err)
 	}
 
-	// define texture to draw framebuffer onto
-	var texOutput uint32
-	gl.GenTextures(1, &texOutput)
-	gl.BindTexture(gl.TEXTURE_2D, texOutput)
+	// define quad texture to draw framebuffer onto
+	var quadTexture uint32
+	gl.GenTextures(1, &quadTexture)
+	gl.BindTexture(gl.TEXTURE_2D, quadTexture)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
+	gl.BindImageTexture(0, quadTexture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 
 	// define quad vao
 	var quadVao uint32
@@ -126,11 +126,14 @@ func main() {
 		// dispatch shader
 		gl.UseProgram(computeShader)
 
+		// https://stackoverflow.com/questions/37136813/what-is-the-difference-between-glbindimagetexture-and-glbindtexture
+		// https://community.khronos.org/t/when-to-use-glactivetexture/64913/2
 		// binds a single level of a texture to an image unit for the purpose of reading and writing it from shaders. 
 		// unit specifies the zero-based index of the image unit to which to bind the texture level. texture specifies 
 		// the name of an existing texture object to bind to the image unit. If texture is zero, then any existing 
 		// binding to the image unit is broken. level specifies the level of the texture to bind to the image unit.
-		gl.BindImageTexture(0, texOutput, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindImageTexture(0, quadTexture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 		
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
@@ -142,13 +145,13 @@ func main() {
 		gl.UseProgram(quadShader)
 		gl.BindVertexArray(quadVao)
 		
-		// lets you create or use a named texture. Calling glBindTexture with target set to GL_TEXTURE_1D, 
-		// GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE, 
+		// binds to the currently active texture (default GL_TEXTURE0. Calling glBindTexture with target set 
+		// to GL_TEXTURE_1D, GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE,
 		// GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_BUFFER, GL_TEXTURE_2D_MULTISAMPLE or 
-		// GL_TEXTURE_2D_MULTISAMPLE_ARRAY and texture set to the name of the new texture binds the texture 
-		// name to the target. When a texture is bound to a target, the previous binding for that target is
-		// automatically broken.
-		gl.BindTexture(gl.TEXTURE_2D, texOutput)
+		// GL_TEXTURE_2D_MULTISAMPLE_ARRAY and texture set to the name of the new texture binds the texture name to the
+		//  target. When a texture is bound to a target, the previous binding for that target isautomatically broken.
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_2D, quadTexture)
 		
 		gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
