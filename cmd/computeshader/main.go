@@ -112,8 +112,8 @@ func main() {
 	var quadVbo uint32
 	gl.GenBuffers(1, &quadVbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, quadVbo)
-	buf := [12]int8{-1, -1, 1, -1, 1, 1, 1, 1, -1, 1, -1, -1}
-	gl.BufferData(gl.ARRAY_BUFFER, 12, unsafe.Pointer(&buf[0]), gl.STATIC_DRAW)
+	quadVertices := [8]int8{-1, -1, -1, 1, 1, -1, 1, 1}
+	gl.BufferData(gl.ARRAY_BUFFER, 8, unsafe.Pointer(&quadVertices), gl.STATIC_DRAW)
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
 
@@ -148,7 +148,7 @@ func main() {
 		gl.BindTexture(gl.TEXTURE_2D, quadTexture)
 		
 		gl.BindVertexArray(quadVao)
-		gl.DrawArrays(gl.TRIANGLES, 0, 6)
+		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
 		time := glfw.GetTime()
 		elapsed := time - previousTime
