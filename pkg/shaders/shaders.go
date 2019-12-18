@@ -15,7 +15,7 @@ const (
 	#version 450 core
 	in vec2 coord;
 	out vec4 finalCol;
-	layout(binding = 1) uniform sampler2D img_output;
+	layout(binding = 12) uniform sampler2D img_output;
 	void main() {
 		finalCol = texture(img_output, coord);
 	}
@@ -24,7 +24,7 @@ const (
 	ComputeSrc = `
 	#version 450 core
 	layout(local_size_x = 1, local_size_y = 1) in;
-	layout(rgba32f, binding = 1) uniform image2D img_output;
+	layout(binding = 11, rgba32f) uniform image2D img_output;
 
 	void main() {
 		// get index in global work group i.e x,y position

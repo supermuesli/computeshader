@@ -64,21 +64,21 @@ func main() {
 
 	// print max workgroup count/size/invocations
 	fmt.Println("***-----------------------------------------------------------------------------***")
-	var work_grp_cnt [3]int32
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
-	fmt.Printf("max global (total) work group size x:%i y:%i z:%i\n", work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2])
+	var workGroupCount [3]int32
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 0, &workGroupCount[0]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 1, &workGroupCount[1]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_COUNT, 2, &workGroupCount[2]);
+	fmt.Printf("max global (total) work group size x:%i y:%i z:%i\n", workGroupCount[0], workGroupCount[1], workGroupCount[2])
 
-	var work_grp_size [3]int32
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
-	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-	fmt.Printf("max global (in one shader) work group sizes x:%i y:%i z:%i\n", work_grp_size[0], work_grp_size[1], work_grp_size[2])
+	var workGroupSize [3]int32
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 0, &workGroupSize[0]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 1, &workGroupSize[1]);
+	gl.GetIntegeri_v(gl.MAX_COMPUTE_WORK_GROUP_SIZE, 2, &workGroupSize[2]);
+	fmt.Printf("max global (in one shader) work group sizes x:%i y:%i z:%i\n", workGroupSize[0], workGroupSize[1], workGroupSize[2])
 
-	var work_grp_inv int32
-	gl.GetIntegerv(gl.MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-	fmt.Printf("max local work group invocations %i\n", work_grp_inv);
+	var workGroupInv int32
+	gl.GetIntegerv(gl.MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &workGroupInv);
+	fmt.Printf("max local work group invocations %i\n", workGroupInv);
 	fmt.Println("***-----------------------------------------------------------------------------***")
 
 	// configure compute shader
@@ -104,6 +104,16 @@ func main() {
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
 	gl.BindImageTexture(0, quadTexture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
 
+	var quadTexture2 uint32
+	gl.GenTextures(1, &quadTexture2)
+	gl.BindTexture(gl.TEXTURE_2D, quadTexture2)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
+	gl.BindImageTexture(0, quadTexture2, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
+
 	// define quad vao
 	var quadVao uint32
 	gl.GenVertexArrays(1, &quadVao)
@@ -127,14 +137,9 @@ func main() {
 		gl.UseProgram(computeShader)
 
 		// https://stackoverflow.com/questions/37136813/what-is-the-difference-between-glbindimagetexture-and-glbindtexture
-		// https://community.khronos.org/t/when-to-use-glactivetexture/64913/2
 		// binds a single level of a texture to an image unit for the purpose of reading and writing it from shaders. 
-		// unit specifies the zero-based index of the image unit to which to bind the texture level. texture specifies 
-		// the name of an existing texture object to bind to the image unit. If texture is zero, then any existing 
-		// binding to the image unit is broken. level specifies the level of the texture to bind to the image unit.
-		gl.ActiveTexture(gl.TEXTURE1)
-		gl.BindImageTexture(0, quadTexture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
-		
+		gl.BindImageTexture(11, quadTexture, 0, false, 0, gl.READ_ONLY, gl.RGBA32F)
+
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
 		// make sure writing to image has finished before read
@@ -145,12 +150,11 @@ func main() {
 		gl.UseProgram(quadShader)
 		gl.BindVertexArray(quadVao)
 		
-		// binds to the currently active texture (default GL_TEXTURE0. Calling glBindTexture with target set 
-		// to GL_TEXTURE_1D, GL_TEXTURE_2D, GL_TEXTURE_3D, GL_TEXTURE_1D_ARRAY, GL_TEXTURE_2D_ARRAY, GL_TEXTURE_RECTANGLE,
-		// GL_TEXTURE_CUBE_MAP, GL_TEXTURE_CUBE_MAP_ARRAY, GL_TEXTURE_BUFFER, GL_TEXTURE_2D_MULTISAMPLE or 
-		// GL_TEXTURE_2D_MULTISAMPLE_ARRAY and texture set to the name of the new texture binds the texture name to the
-		//  target. When a texture is bound to a target, the previous binding for that target isautomatically broken.
-		gl.ActiveTexture(gl.TEXTURE1)
+		// https://community.khronos.org/t/when-to-use-glactivetexture/64913/2
+		gl.ActiveTexture(gl.TEXTURE12)
+		
+		// calling glBindTexture binds the texture name
+		// to the target. When a texture is bound to a target, the previous binding for that target is automatically broken.
 		gl.BindTexture(gl.TEXTURE_2D, quadTexture)
 		
 		gl.DrawArrays(gl.TRIANGLES, 0, 6)
