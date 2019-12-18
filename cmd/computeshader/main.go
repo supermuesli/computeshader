@@ -102,18 +102,7 @@ func main() {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
 	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.BindImageTexture(0, quadTexture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
-
-	var quadTexture2 uint32
-	gl.GenTextures(1, &quadTexture2)
-	gl.BindTexture(gl.TEXTURE_2D, quadTexture2)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, windowWidth, windowHeight, 0, gl.RGBA, gl.FLOAT, nil)
-	gl.BindImageTexture(0, quadTexture2, 0, false, 0, gl.WRITE_ONLY, gl.RGBA32F)
-
+	
 	// define quad vao
 	var quadVao uint32
 	gl.GenVertexArrays(1, &quadVao)
@@ -128,6 +117,7 @@ func main() {
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
 
+	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
 	previousTime := glfw.GetTime()
@@ -145,10 +135,10 @@ func main() {
 		// make sure writing to image has finished before read
 		gl.MemoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
 
-		// render to screen
 		gl.Clear(gl.COLOR_BUFFER_BIT)
+		
+		// render compute shader output (texture) onto screen quad
 		gl.UseProgram(quadShader)
-		gl.BindVertexArray(quadVao)
 		
 		// https://community.khronos.org/t/when-to-use-glactivetexture/64913/2
 		gl.ActiveTexture(gl.TEXTURE12)
@@ -157,12 +147,12 @@ func main() {
 		// to the target. When a texture is bound to a target, the previous binding for that target is automatically broken.
 		gl.BindTexture(gl.TEXTURE_2D, quadTexture)
 		
+		gl.BindVertexArray(quadVao)
 		gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
 		time := glfw.GetTime()
 		elapsed := time - previousTime
-		//fmt.Println(int(1.0/elapsed), "FPS")
-		_ = elapsed
+		fmt.Println(int(1.0/elapsed), "FPS")
 		previousTime = time
 
 		// poll keyboard/mouse events
