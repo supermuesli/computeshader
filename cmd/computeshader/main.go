@@ -113,9 +113,18 @@ func main() {
 	gl.GenBuffers(1, &quadVbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, quadVbo)
 	quadVertices := [8]int8{-1, -1, -1, 1, 1, -1, 1, 1}
-	gl.BufferData(gl.ARRAY_BUFFER, 8, unsafe.Pointer(&quadVertices), gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, 8, unsafe.Pointer(&quadVertices[0]), gl.STATIC_DRAW)
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
+
+	// define 3d model vertices
+	var model uint32
+	gl.GenBuffers(1, &model)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
+	modelVertices := []float32{130, 130, 200, 130, 30, 200, 30, 30, 200}
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, 9, unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
+	// bound to binding point 3
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
 
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
