@@ -26,7 +26,7 @@ const (
 	layout(local_size_x = 1, local_size_y = 1) in;
 	
 	// texture to write to
-	layout(binding = 11, rgba32f) uniform image2D img_output;
+	layout(binding = 6, rgba32f) uniform image2D img_output;
 
 	// triangles to render
 	layout(std430, binding = 3) buffer model
@@ -76,7 +76,8 @@ const (
 		// TODO dont hardcode camera
 		vec3 cam_origin = vec3(400.0, 300.0, -600.0);
 
-		vec3 ray_dir = normalize(vec3(pixel_coord, 0.0) - cam_origin);
+		vec3 ray_dest = vec3(cam_origin.xy - 0.5*pixel_coord.xy, 0.0)
+		vec3 ray_dir = normalize(ray_dest - cam_origin);
 
 		// final pixel color
 		vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
@@ -86,13 +87,13 @@ const (
 		// send camera ray
 		for(int i = 0; i < vertex_comp.length(); i = i+9) {
 			// 3 vertex components -> 1 vertex
-			// 3 vertices		  -> 1 triangle
+			// 3 vertices		   -> 1 triangle
 			// 9 vertex components -> 1 triangle
 			if (intersects(cam_origin, ray_dir, vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]), vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]), vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]), d)) {
 				if (d < min_d) {
 					min_d = d;
 					// TODO replace with actual triangle color
-					pixel = vec4(normalize(vec3(d)), 1.0);
+					pixel = vec4(1.0, 1.0, 1.0, 1.0);
 				}
 			}
 		}

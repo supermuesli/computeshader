@@ -4,7 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.5-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/supermuesli/computeshader/pkg/shaders"
-	"github.com/supermuesli/computeshader/pkg/objparser"
+	_ "github.com/supermuesli/computeshader/pkg/objparser"
 	"github.com/supermuesli/computeshader/internal/shaderutils"
 	"fmt"
 	_ "image/png"
@@ -121,12 +121,12 @@ func main() {
 	// define 3d model vertices
 	var model uint32
 	gl.GenBuffers(1, &model)
-	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
-	// modelVertices := []float32{30, 30, 200, 130, 30, 200, 130, 130, 200}
-	modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/bunny.obj")
-	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices), unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
+	//modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/bunny.obj")
+	modelVertices := []float32{30, 30, 200, 230, 30, 200, 230, 230, 200}
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices)*4, unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
 
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -139,7 +139,7 @@ func main() {
 
 		// https://stackoverflow.com/questions/37136813/what-is-the-difference-between-glbindimagetexture-and-glbindtexture
 		// binds a single level of a texture to an image unit for the purpose of reading and writing it from shaders. 
-		gl.BindImageTexture(11, quadTexture, 0, false, 0, gl.READ_ONLY, gl.RGBA32F)
+		gl.BindImageTexture(6, quadTexture, 0, false, 0, gl.READ_ONLY, gl.RGBA32F)
 
 		gl.DispatchCompute(windowWidth, windowHeight, 1)
 
