@@ -31,7 +31,7 @@ const (
 	// triangles to render
 	layout(std430, binding = 3) buffer model
 	{
-		float vertices[];
+		float vertex_comp[];
 	};
 
 	// minimum "distance" to prevent self-intersection
@@ -65,18 +65,22 @@ const (
 
 		// final pixel color
 		vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
-		float min_dist = 999999.0;
-		float d = 999999.0;
-		vec3 tri_normal = vec3(0.0);
-		vec3 min_tri_normal = vec3(0);
+		float min_d = 999999.0;
+		float d;
+		vec3 min_tri_normal;
+		vec3 tri_normal;
 
-		// send camera rays
-		for(int i = 0; i < vertices.length(); i = i+9) {
-			if (intersects(cam_origin, ray_dir, vec3(vertices[i], vertices[i+1], vertices[i+2]), vec3(vertices[i+3], vertices[i+4], vertices[i+5]), vec3(vertices[i+6], vertices[i+7], vertices[i+8]), d, tri_normal)) {
-				if (d < min_dist) {
-					min_dist = d;
+		// send camera ray
+		for(int i = 0; i < vertex_comp.length(); i = i+9) {
+			// 3 vertex components -> 1 vertex
+			// 3 vertices          -> 1 triangle
+			// 9 vertex components -> 1 triangle
+			if (intersects(cam_origin, ray_dir, vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]), vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]), vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]), d, tri_normal)) {
+				if (d < min_d) {
+					min_d = d;
 					min_tri_normal = tri_normal;
-					pixel = vec4(1.0, 0.0, 0.0, 1.0);
+					// TODO replace with actual triangle color
+					pixel = vec4(normalize(vec3(d)), 1.0);
 				}
 			}
 		}
