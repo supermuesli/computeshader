@@ -118,14 +118,13 @@ func main() {
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
 
-	objparser.Stream("/home/supermuesli/Documents/3dModelsObj/bunny.obj")
-
 	// define 3d model vertices
 	var model uint32
 	gl.GenBuffers(1, &model)
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
-	modelVertices := []float32{30, 30, 200, 130, 30, 200, 130, 130, 200}
-	gl.BufferData(gl.SHADER_STORAGE_BUFFER, 9, unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
+	// modelVertices := []float32{30, 30, 200, 130, 30, 200, 130, 130, 200}
+	modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/bunny.obj")
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices), unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
 

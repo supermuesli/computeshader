@@ -38,20 +38,35 @@ const (
 	const float EPSILON = 0.0000001;
 
 	// möller trombore triangle intersection
-	bool intersects(vec3 ray_origin, vec3 ray_dir, vec3 p0, vec3 p1, vec3 p2, out float d, out vec3 tri_normal) {
-		const vec3 e0 = p1 - p0;
-		const vec3 e1 = p0 - p2;
-		tri_normal = cross(e1, e0);
-
-		const vec3 e2 = (1.0/dot(tri_normal, ray_dir)) * (p0 - ray_origin);
-		const vec3 i  = cross(ray_dir, e2);
-
-		d = dot(tri_normal, e2);
-
-		if (d > EPSILON) {
+	bool intersects(vec3 ray_origin, vec3 ray_dir, vec3 p0, vec3 p1, vec3 p2, out float d) {
+		vec3 edge1, edge2, h, s, q;
+		float a, f, u, v;
+		edge1 = p1 - p0;
+		edge2 = p2 - p0;
+		h = cross(ray_dir, edge2);
+		a = dot(edge1, h);
+		if (a > -EPSILON && a < EPSILON)
+			// This ray is parallel to this triangle.
+			return false; 
+		f = 1.0/a;
+		s = ray_origin - p0;
+		u = f * dot(s, h);
+		if (u < 0.0 || u > 1.0)
+			return false;
+		q = cross(s, edge1);
+		v = f * dot(ray_dir, q);
+		if (v < 0.0 || u + v > 1.0)
+			return false;
+		// At this stage we can compute d to find out where the intersection point is on the line.
+		d = f * dot(edge2, q);
+		if (d > EPSILON && d < 1/EPSILON) {
+			// ray intersection
 			return true;
-		} 
-		return false;
+		}
+		else {
+			// This means that there is a line intersection but not a ray intersection.
+			return false;
+		}
 	}
 
 	void main() {
@@ -66,19 +81,16 @@ const (
 		// final pixel color
 		vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
 		float min_d = 999999.0;
-		float d;
-		vec3 min_tri_normal;
-		vec3 tri_normal;
+		float d = 999999.0;
 
 		// send camera ray
 		for(int i = 0; i < vertex_comp.length(); i = i+9) {
 			// 3 vertex components -> 1 vertex
-			// 3 vertices          -> 1 triangle
+			// 3 vertices		  -> 1 triangle
 			// 9 vertex components -> 1 triangle
-			if (intersects(cam_origin, ray_dir, vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]), vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]), vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]), d, tri_normal)) {
+			if (intersects(cam_origin, ray_dir, vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]), vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]), vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]), d)) {
 				if (d < min_d) {
 					min_d = d;
-					min_tri_normal = tri_normal;
 					// TODO replace with actual triangle color
 					pixel = vec4(normalize(vec3(d)), 1.0);
 				}
