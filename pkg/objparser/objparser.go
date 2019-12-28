@@ -64,7 +64,7 @@ func Stream(path string) []float32 {
 					log.Fatal(err)
 				}
 
-				i3 := 1337
+				i3 := 99999999
 				if len(curFace) == 4 {
 					i3, err = strconv.Atoi(s.Split(curFace[3], "/")[0])
 					if err != nil {
@@ -73,21 +73,29 @@ func Stream(path string) []float32 {
 				}
 
 				if i0 < 1 {
-					i0 = len(vertices) + i0 + 1
+					i0 = len(vertices) + 3*i0
 				}
 				if i1 < 1 {
-					i1 = len(vertices) + i1 + 1
+					i1 = len(vertices) + 3*i1
 				}
 				if i2 < 1 {
-					i2 = len(vertices) + i2 + 1
+					i2 = len(vertices) + 3*i2
 				}
 				if i3 < 1 {
-					i3 = len(vertices) + i3 + 1
+					i3 = len(vertices) + 3*i3
 				}
 
-				faces = append(faces, []float32{vertices[i0 - 1], vertices[i1 - 1], vertices[i2 - 1]}...)
-				if len(curFace) == 4 {
-					faces = append(faces, []float32{vertices[i1 - 1], vertices[i2 - 1], vertices[i3 - 1]}...)
+				faces = append(faces, []float32 {
+					vertices[i0], vertices[i0 + 1], vertices[i0 + 2], 
+					vertices[i1], vertices[i1 + 1], vertices[i1 + 2], 
+					vertices[i2], vertices[i2 + 1], vertices[i2 + 2]}...
+				)
+				if len(curFace) == 4 {	
+					faces = append(faces, []float32 {
+						vertices[i3], vertices[i3 + 1], vertices[i3 + 2],
+						vertices[i0], vertices[i0 + 1], vertices[i0 + 2], 
+						vertices[i2], vertices[i2 + 1], vertices[i2 + 2]}...
+					)
 				}
 			} else {
 				continue
@@ -99,5 +107,6 @@ func Stream(path string) []float32 {
 		log.Fatal(err)
 	}
 
+	fmt.Println(faces)
 	return faces
 }

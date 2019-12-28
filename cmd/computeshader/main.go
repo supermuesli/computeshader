@@ -4,7 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.5-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/supermuesli/computeshader/pkg/shaders"
-	_ "github.com/supermuesli/computeshader/pkg/objparser"
+	"github.com/supermuesli/computeshader/pkg/objparser"
 	"github.com/supermuesli/computeshader/internal/shaderutils"
 	"fmt"
 	_ "image/png"
@@ -122,8 +122,8 @@ func main() {
 	var model uint32
 	gl.GenBuffers(1, &model)
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
-	//modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/cornellbox_original.obj")
-	modelVertices := []float32{-0.5, -0.5, 2, 1, -0.5, 2, 1, 1, 2}
+	modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/cornellbox_original.obj")
+	//modelVertices := []float32{-0.5, -0.5, 2, 1, -0.5, 2, 1, 1, 2}
 	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices)*4, unsafe.Pointer(&modelVertices[0]), gl.STATIC_COPY)
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
