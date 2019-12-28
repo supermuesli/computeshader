@@ -73,16 +73,18 @@ const (
 		// get index in global work group i.e x,y position
 		ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
 		
-		float one_unit = 2;
+		const float width = 800.0;
+		const float height = 600.0;
+		const float one_unit = 1.0;
 
 		// TODO dont hardcode camera
-		vec3 cam_origin = vec3(0, 0, -one_unit);
+		vec3 cam_origin = vec3(0.5/width, 0.5/height, -one_unit);
 
-		vec3 ray_dest = vec3(cam_origin.xy - 0.5*pixel_coord.xy, cam_origin.z + one_unit);
+		vec3 ray_dest = vec3(vec2(1/width, 1/height)*pixel_coord.xy - cam_origin.xy, cam_origin.z + one_unit);
 		vec3 ray_dir = normalize(ray_dest - cam_origin);
 
 		// final pixel color
-		vec4 pixel = vec4(0.0, 0.0, 0.0, 1.0);
+		vec3 pixel = vec3(0.0);
 		float min_d = 999999.0;
 		float d = 999999.0;
 
@@ -98,13 +100,13 @@ const (
 				if (d < min_d) {
 					min_d = d;
 					// TODO replace with actual triangle color
-					pixel = vec4(0.0, 1.0, 0.0, 1.0);
+					pixel = vec3(0.0, 1.0, 0.0);
 				}
 			}
 		}
 		
 		// output to a specific pixel in the texture
-		imageStore(img_output, pixel_coord, pixel);
+		imageStore(img_output, pixel_coord, vec4(pixel, 1.0));
 	}
 	` + "\x00"
 )
