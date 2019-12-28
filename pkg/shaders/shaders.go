@@ -73,10 +73,12 @@ const (
 		// get index in global work group i.e x,y position
 		ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
 		
-		// TODO dont hardcode camera
-		vec3 cam_origin = vec3(400.0, 300.0, -600.0);
+		float one_unit = 2;
 
-		vec3 ray_dest = vec3(cam_origin.xy - 0.5*pixel_coord.xy, 0.0)
+		// TODO dont hardcode camera
+		vec3 cam_origin = vec3(0, 0, -one_unit);
+
+		vec3 ray_dest = vec3(cam_origin.xy - 0.5*pixel_coord.xy, cam_origin.z + one_unit);
 		vec3 ray_dir = normalize(ray_dest - cam_origin);
 
 		// final pixel color
@@ -89,11 +91,14 @@ const (
 			// 3 vertex components -> 1 vertex
 			// 3 vertices		   -> 1 triangle
 			// 9 vertex components -> 1 triangle
-			if (intersects(cam_origin, ray_dir, vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]), vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]), vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]), d)) {
+			vec3 v0 = vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]);
+			vec3 v1 = vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]);
+			vec3 v2 = vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]);
+			if (intersects(cam_origin, ray_dir, v0, v1, v2, d)) {
 				if (d < min_d) {
 					min_d = d;
 					// TODO replace with actual triangle color
-					pixel = vec4(1.0, 1.0, 1.0, 1.0);
+					pixel = vec4(0.0, 1.0, 0.0, 1.0);
 				}
 			}
 		}

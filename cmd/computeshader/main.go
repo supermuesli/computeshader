@@ -4,7 +4,7 @@ import (
 	"github.com/go-gl/gl/v4.5-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
 	"github.com/supermuesli/computeshader/pkg/shaders"
-	_ "github.com/supermuesli/computeshader/pkg/objparser"
+	"github.com/supermuesli/computeshader/pkg/objparser"
 	"github.com/supermuesli/computeshader/internal/shaderutils"
 	"fmt"
 	_ "image/png"
@@ -121,12 +121,13 @@ func main() {
 	// define 3d model vertices
 	var model uint32
 	gl.GenBuffers(1, &model)
-	//modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/bunny.obj")
-	modelVertices := []float32{30, 30, 200, 230, 30, 200, 230, 230, 200}
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
+	modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/cornellbox_original.obj")
+	fmt.Println(modelVertices)
+	modelVertices = []float32{-0.5, -0.5, 2, 1, -0.5, 2, 1, 1, 2}
 	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices)*4, unsafe.Pointer(&modelVertices[0]), gl.STATIC_DRAW)
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
-	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
 
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
