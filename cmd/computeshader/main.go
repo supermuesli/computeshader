@@ -23,6 +23,12 @@ func init() {
 	runtime.LockOSThread()
 }
 
+func keyCallBack (window *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+	if (key == glfw.KeyW && action == glfw.Press) {
+		fmt.Println("key press")
+	}
+}
+
 func main() {
 	if err := glfw.Init(); err != nil {
 		log.Fatalln("failed to initialize glfw:", err)
@@ -122,7 +128,7 @@ func main() {
 	var model uint32
 	gl.GenBuffers(1, &model)
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
-	modelVertices := objparser.Stream("/home/supermuesli/Documents/3dModelsObj/cornellbox_original.obj")
+	modelVertices := objparser.Stream("/home/muesli/go/src/github.com/supermuesli/computeshader/cornelbox.obj")
 	//modelVertices := []float32{-0.5, -0.5, 2, 1, -0.5, 2, 1, 1, 2}
 	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(modelVertices)*4, unsafe.Pointer(&modelVertices[0]), gl.STATIC_COPY)
 	// bound to binding point 3
@@ -130,6 +136,8 @@ func main() {
 
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+
+	window.SetKeyCallback(keyCallBack)
 
 	previousTime := glfw.GetTime()
 
@@ -163,7 +171,8 @@ func main() {
 
 		time := glfw.GetTime()
 		elapsed := time - previousTime
-		fmt.Println(int(1.0/elapsed), "FPS")
+		_ = elapsed
+		//fmt.Println(int(1.0/elapsed), "FPS")
 		previousTime = time
 
 		// poll keyboard/mouse events

@@ -77,17 +77,16 @@ const (
 		const float width = 800.0;
 		const float height = 600.0;
 
-		const float one_unit = 0.5;
+		const float one_unit = 1;
 
-		vec3 cam_origin = vec3(0, 0, 4*one_unit);
+		vec3 cam_origin = vec3(0, 0, -2*height);
 
-		vec3 ray_dest = vec3(cam_origin.xy + 2/width*pixel_coord.xy - vec2(one_unit), cam_origin.z - one_unit);
+		vec3 ray_dest = vec3(cam_origin.x - width/2 + pixel_coord.x, cam_origin.y - height/2 + pixel_coord.y, cam_origin.z + height);
 		vec3 ray_dir = normalize(ray_dest - cam_origin);
 
 		// final pixel color
 		vec3 pixel = vec3(0.0);
 		float min_d = 999999.0;
-		float max_d = -999999.0;
 		float d = 999999.0;
 
 		// send camera ray
@@ -95,14 +94,15 @@ const (
 			// 3 vertex components -> 1 vertex
 			// 3 vertices		   -> 1 triangle
 			// 9 vertex components -> 1 triangle
-			vec3 v0 = vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]);
-			vec3 v1 = vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]);
-			vec3 v2 = vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]);
+			vec3 v0 = (height/4)*one_unit*vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]);
+			vec3 v1 = (height/4)*one_unit*vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]);
+			vec3 v2 = (height/4)*one_unit*vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]);
 			if (intersects(cam_origin, ray_dir, v0, v1, v2, d)) {
 				if (d < min_d) {
 					min_d = d;
 					// TODO replace with actual triangle color
-					pixel = 0.1*vec3(d);
+					//pixel = vec3(1);
+					pixel = vec3(d);
 				}
 			}
 		}

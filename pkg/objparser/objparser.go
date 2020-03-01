@@ -25,17 +25,15 @@ func Stream(path string) []float32 {
 		if len(cur) > 0 {
 			cur = s.ReplaceAll(cur, "\t", "")
 			for {
-				if s.Contains(cur, "  ") {
-					cur = s.ReplaceAll(cur, "  ", " ")
-				} else {
+				cur = s.ReplaceAll(cur, "  ", " ")
+				if !s.Contains(cur, "  ") {
 					break
 				}
 			}
-			fmt.Println(cur)
-			if string(cur[0]) == "v" && string(cur[1]) == " " {
+			if string(cur[0]) == "v" {
 				curVertex := s.Split(cur, " ")
+				curVertex = curVertex[1:]
 				fmt.Println(curVertex)
-				curVertex = curVertex[len(curVertex)-3:]
 				v0, err := strconv.ParseFloat(curVertex[0], 32)
 				if err != nil {
 					log.Fatal(err)
@@ -63,7 +61,6 @@ func Stream(path string) []float32 {
 				if err != nil {
 					log.Fatal(err)
 				}
-
 				i3 := 99999999
 				if len(curFace) == 4 {
 					i3, err = strconv.Atoi(s.Split(curFace[3], "/")[0])
@@ -90,6 +87,7 @@ func Stream(path string) []float32 {
 					vertices[i1], vertices[i1 + 1], vertices[i1 + 2], 
 					vertices[i2], vertices[i2 + 1], vertices[i2 + 2]}...
 				)
+				fmt.Println(len(curFace))
 				if len(curFace) == 4 {	
 					faces = append(faces, []float32 {
 						vertices[i3], vertices[i3 + 1], vertices[i3 + 2],
