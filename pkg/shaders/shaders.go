@@ -29,9 +29,15 @@ const (
 	layout(binding = 6, rgba32f) uniform image2D img_output;
 
 	// triangles to render
-	layout(std430, binding = 3) buffer model
+	layout(std430, binding = 3) buffer model_ssbo
 	{
 		float vertex_comp[];
+	};
+
+	// camera handling via keyEvents
+	layout(std430, binding = 4) buffer camera_ssbo
+	{
+		float camera[];
 	};
 
 	// minimum "distance" to prevent self-intersection
@@ -79,9 +85,9 @@ const (
 
 		const float one_unit = 1;
 
-		vec3 cam_origin = vec3(0, 0, -2*height);
+		vec3 cam_origin = vec3(camera[0], camera[1], camera[2]);
 
-		vec3 ray_dest = vec3(cam_origin.x - width/2 + pixel_coord.x, cam_origin.y - height/2 + pixel_coord.y, cam_origin.z + height);
+		vec3 ray_dest = vec3(cam_origin.x - width/2 + pixel_coord.x, cam_origin.y - height/2 + pixel_coord.y, cam_origin.z - height);
 		vec3 ray_dir = normalize(ray_dest - cam_origin);
 
 		// final pixel color
@@ -94,15 +100,22 @@ const (
 			// 3 vertex components -> 1 vertex
 			// 3 vertices		   -> 1 triangle
 			// 9 vertex components -> 1 triangle
-			vec3 v0 = (height/4)*one_unit*vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]);
-			vec3 v1 = (height/4)*one_unit*vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]);
-			vec3 v2 = (height/4)*one_unit*vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]);
+			vec3 v0 = (height/2)*one_unit*vec3(vertex_comp[i], vertex_comp[i+1], vertex_comp[i+2]);
+			vec3 v1 = (height/2)*one_unit*vec3(vertex_comp[i+3], vertex_comp[i+4], vertex_comp[i+5]);
+			vec3 v2 = (height/2)*one_unit*vec3(vertex_comp[i+6], vertex_comp[i+7], vertex_comp[i+8]);
 			if (intersects(cam_origin, ray_dir, v0, v1, v2, d)) {
 				if (d < min_d) {
 					min_d = d;
 					// TODO replace with actual triangle color
-					//pixel = vec3(1);
-					pixel = vec3(d);
+					vec3 u = v1 - v0;
+					vec3 v = v2 - v0;
+					vec3 normal = normalize(cross(u, v));
+
+					// normal buffer
+					//pixel = vec3(normal + vec3(1))/2;
+
+					// lambert shading
+					pixel = abs(vec3(0, 0, 1)*dot(ray_dir, normal));
 				}
 			}
 		}

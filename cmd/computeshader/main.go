@@ -6,6 +6,7 @@ import (
 	"github.com/supermuesli/computeshader/pkg/shaders"
 	"github.com/supermuesli/computeshader/pkg/objparser"
 	"github.com/supermuesli/computeshader/internal/shaderutils"
+	_ "github.com/inkyblackness/imgui-go"
 	"fmt"
 	_ "image/png"
 	"log"
@@ -21,12 +22,6 @@ const (
 func init() {
 	// glfw event handling must run on the main OS thread
 	runtime.LockOSThread()
-}
-
-func keyCallBack (window *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
-	if (key == glfw.KeyW && action == glfw.Press) {
-		fmt.Println("key press")
-	}
 }
 
 func main() {
@@ -124,7 +119,7 @@ func main() {
 	gl.EnableVertexAttribArray(0)
 	gl.VertexAttribPointer(0, 2, gl.BYTE, false, 0, nil)
 
-	// define 3d model vertices
+	// define 3d model vertices ssbo
 	var model uint32
 	gl.GenBuffers(1, &model)
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
@@ -134,9 +129,41 @@ func main() {
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
 
+	// define camera ssbo
+	var camera uint32
+	gl.GenBuffers(1, &camera)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, camera)
+	camera_vec := []float32{100, 250, 2*windowHeight}
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(camera_vec)*4, unsafe.Pointer(&camera_vec[0]), gl.STATIC_COPY)
+	// bound to binding point 4
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 4, camera)
+
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
+	keyCallBack := func (window *glfw.Window, key glfw.Key, scancode int, action glfw.Action, mods glfw.ModifierKey) {
+		if (key == glfw.KeyW && action == glfw.Press) {
+			camera_vec = []float32{camera_vec[0], camera_vec[1], camera_vec[2]-50}
+			gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(camera_vec)*4, unsafe.Pointer(&camera_vec[0]), gl.STATIC_COPY)
+			gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 4, camera)
+		}
+		if (key == glfw.KeyS && action == glfw.Press) {
+			camera_vec = []float32{camera_vec[0], camera_vec[1], camera_vec[2]+50}
+			gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(camera_vec)*4, unsafe.Pointer(&camera_vec[0]), gl.STATIC_COPY)
+			gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 4, camera)
+		}
+		if (key == glfw.KeyA && action == glfw.Press) {
+			camera_vec = []float32{camera_vec[0]-50, camera_vec[1], camera_vec[2]}
+			gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(camera_vec)*4, unsafe.Pointer(&camera_vec[0]), gl.STATIC_COPY)
+			gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 4, camera)
+		}
+		if (key == glfw.KeyD && action == glfw.Press) {
+			camera_vec = []float32{camera_vec[0]+50, camera_vec[1], camera_vec[2]}
+			gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(camera_vec)*4, unsafe.Pointer(&camera_vec[0]), gl.STATIC_COPY)
+			gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 4, camera)
+		}
+	}
+	window.SetInputMode(glfw.StickyKeysMode, glfw.True)
 	window.SetKeyCallback(keyCallBack)
 
 	previousTime := glfw.GetTime()
@@ -171,8 +198,8 @@ func main() {
 
 		time := glfw.GetTime()
 		elapsed := time - previousTime
-		_ = elapsed
-		//fmt.Println(int(1.0/elapsed), "FPS")
+		//_ = elapsed
+		fmt.Println(int(1.0/elapsed), "FPS")
 		previousTime = time
 
 		// poll keyboard/mouse events

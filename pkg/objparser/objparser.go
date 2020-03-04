@@ -1,7 +1,6 @@
 package objparser
 
 import (
-	"fmt"
 	"bufio"
 	"os"
 	"log"
@@ -30,10 +29,9 @@ func Stream(path string) []float32 {
 					break
 				}
 			}
-			if string(cur[0]) == "v" {
+			if string(cur[0]) == "v" && string(cur[1]) == " " {
 				curVertex := s.Split(cur, " ")
 				curVertex = curVertex[1:]
-				fmt.Println(curVertex)
 				v0, err := strconv.ParseFloat(curVertex[0], 32)
 				if err != nil {
 					log.Fatal(err)
@@ -87,12 +85,11 @@ func Stream(path string) []float32 {
 					vertices[i1], vertices[i1 + 1], vertices[i1 + 2], 
 					vertices[i2], vertices[i2 + 1], vertices[i2 + 2]}...
 				)
-				fmt.Println(len(curFace))
 				if len(curFace) == 4 {	
 					faces = append(faces, []float32 {
-						vertices[i3], vertices[i3 + 1], vertices[i3 + 2],
-						vertices[i0], vertices[i0 + 1], vertices[i0 + 2], 
-						vertices[i2], vertices[i2 + 1], vertices[i2 + 2]}...
+						vertices[i0], vertices[i0 + 1], vertices[i0 + 2],
+						vertices[i2], vertices[i2 + 1], vertices[i2 + 2], 
+						vertices[i3], vertices[i3 + 1], vertices[i3 + 2]}...
 					)
 				}
 			} else {
@@ -105,6 +102,5 @@ func Stream(path string) []float32 {
 		log.Fatal(err)
 	}
 
-	fmt.Println(faces)
 	return faces
 }
