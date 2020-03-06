@@ -130,9 +130,9 @@ const (
 			// 3 vertex components -> 1 vertex
 			// 3 vertices		   -> 1 triangle
 			// 9 vertex components -> 1 triangle
-			vec3 v0 = (height/2)*one_unit*vec3(triangles[i].a[0], triangles[i].a[1], triangles[i].a[2]);
-			vec3 v1 = (height/2)*one_unit*vec3(triangles[i].b[0], triangles[i].b[1], triangles[i].b[2]);
-			vec3 v2 = (height/2)*one_unit*vec3(triangles[i].c[0], triangles[i].c[1], triangles[i].c[2]);
+			vec3 v0 = (height/2)*one_unit*triangles[i].a;
+			vec3 v1 = (height/2)*one_unit*triangles[i].b;
+			vec3 v2 = (height/2)*one_unit*triangles[i].c;
 			if (intersects(cam_origin, ray_dir, v0, v1, v2, d)) {
 				if (d < min_d) {
 					min_d = d;
@@ -145,7 +145,7 @@ const (
 					//pixel = vec3(normal + vec3(1))/2;
 
 					// lambert shading
-					pixel = abs(vec3(triangles[i].color[0], triangles[i].color[1], triangles[i].color[2]*dot(ray_dir, normal)));
+					pixel = abs(vec3(triangles[i].color*dot(ray_dir, normal)));
 				}
 			}
 		}
