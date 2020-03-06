@@ -12,7 +12,7 @@ import (
 type Material struct {
 	Name      string
 	Color     []float32 
-	Intensity float32
+	Intensity []float32
 }
 
 type Triangle struct {
@@ -20,7 +20,7 @@ type Triangle struct {
 	B         []float32
 	C         []float32
 	Color     []float32
-	Intensity float32
+	Intensity []float32
 }
 
 func GetTriangles(path string) []Triangle {
@@ -29,7 +29,7 @@ func GetTriangles(path string) []Triangle {
 	triangles := []Triangle{}
 
 	curColor := []float32{0, 0, 0}
-	curIntensity := float32(0.0)
+	curIntensity := []float32{0, 0, 0}
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -198,7 +198,7 @@ func parseMtl(path string) []Material {
 					curMaterial := Material {
 						Name: s.Split(cur, " ")[1],
 						Color: []float32{0, 0, 0},
-						Intensity: 0,
+						Intensity: []float32{0, 0, 0},
 					}
 					materials = append(materials, curMaterial)
 				} 
@@ -218,6 +218,21 @@ func parseMtl(path string) []Material {
 					log.Fatal(err)
 				}
 				materials[len(materials)-1].Color = []float32{float32(r),float32(g),float32(b)}
+			} else if string(cur[0]) == "K" && string(cur[1]) == "e" {
+				curVertex := s.Split(cur, " ")[1:]
+				r, err := strconv.ParseFloat(curVertex[0], 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+				g, err := strconv.ParseFloat(curVertex[1], 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+				b, err := strconv.ParseFloat(curVertex[2], 32)
+				if err != nil {
+					log.Fatal(err)
+				}
+				materials[len(materials)-1].Intensity = []float32{float32(r),float32(g),float32(b)}
 			}
 		}
 	}

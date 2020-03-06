@@ -30,11 +30,11 @@ const (
 
 	struct triangle 
 	{
-		float a[3];
-		float b[3];
-		float c[3];
-		float color[3];
-		float intensity;
+		vec3 a;
+		vec3 b;
+		vec3 c;
+		vec3 color;
+		vec3 intensity;
 	};
 
 	// triangles to render
