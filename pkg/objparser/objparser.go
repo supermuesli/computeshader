@@ -11,25 +11,25 @@ import (
 
 type Material struct {
 	Name      string
-	Color     []float32 
-	Intensity []float32
+	Color     [3]float32 
+	Intensity [3]float32
 }
 
 type Triangle struct {
-	A         []float32
-	B         []float32
-	C         []float32
-	Color     []float32
-	Intensity []float32
+	A         [3]float32
+	B         [3]float32
+	C         [3]float32
+	Color     [3]float32
+	Intensity [3]float32
 }
 
 func GetTriangles(path string) []Triangle {
-	vertices := []float32{}
+	vertices   := []float32{}
 	parsedMtls := []Material{}
-	triangles := []Triangle{}
+	triangles  := []Triangle{}
 
-	curColor := []float32{0, 0, 0}
-	curIntensity := []float32{0, 0, 0}
+	curColor     := [3]float32{0, 0, 0}
+	curIntensity := [3]float32{0, 0, 0}
 
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -43,20 +43,26 @@ func GetTriangles(path string) []Triangle {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	ScanLoop:
+
 	for scanner.Scan() {
 		cur := scanner.Text()
+		//fmt.Println("cur at start", cur)
 		if len(cur) > 1 {
-			cur = s.ReplaceAll(cur, "\t", "")
+			// delete all tabs
+			cur = s.ReplaceAll(cur, "\t", " ")
+			//fmt.Println("cut after tabs", cur)
+			// delete all double spaces
 			for {
 				cur = s.ReplaceAll(cur, "  ", " ")
 				if !s.Contains(cur, "  ") {
 					break
 				}
 			}
+			//fmt.Println("cur after double spaces", cur)
+			// delete all prefix spaces
 			for {
 				if cur == " " {
-					continue ScanLoop
+					break
 				}
 				if string(cur[0]) == " " {
 					cur = cur[1:]
@@ -64,6 +70,7 @@ func GetTriangles(path string) []Triangle {
 					break
 				}
 			}
+			//fmt.Println("cur after prefix spaces", cur)
 			if len(cur) > 5  {
 				if cur[:6] == "mtllib" {
 					fmt.Println("parsing", cwd + "/" + s.Split(cur, " ")[1])
@@ -84,6 +91,7 @@ func GetTriangles(path string) []Triangle {
 			if string(cur[0]) == "v" && string(cur[1]) == " " {
 				curVertex := s.Split(cur, " ")
 				curVertex = curVertex[1:]
+				//fmt.Println("cur at v", cur)
 				v0, err := strconv.ParseFloat(curVertex[0], 32)
 				if err != nil {
 					log.Fatal(err)
@@ -132,25 +140,23 @@ func GetTriangles(path string) []Triangle {
 					i3 = len(vertices) + 3*i3
 				}
 
-				curTriangle := Triangle {
-					A: []float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
-					B: []float32{vertices[i1], vertices[i1 + 1], vertices[i1 + 2]},
-					C: []float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
+				triangles = append(triangles, Triangle {
+					A: [3]float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
+					B: [3]float32{vertices[i1], vertices[i1 + 1], vertices[i1 + 2]},
+					C: [3]float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
 					Color: curColor,
 					Intensity: curIntensity,
-				}
-				triangles = append(triangles, curTriangle)
+				})
 				
 				// triangulate quad
 				if len(curFace) == 4 {	
-					curTriangle := Triangle {
-						A: []float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
-						B: []float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
-						C: []float32{vertices[i3], vertices[i3 + 1], vertices[i3 + 2]},
+					triangles = append(triangles, Triangle {
+						A: [3]float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
+						B: [3]float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
+						C: [3]float32{vertices[i3], vertices[i3 + 1], vertices[i3 + 2]},
 						Color: curColor,
 						Intensity: curIntensity,
-					}
-					triangles = append(triangles, curTriangle)
+					})
 				}
 			} 
 		}
@@ -172,11 +178,11 @@ func parseMtl(path string) []Material {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	ScanLoop:
+
 	for scanner.Scan() {
 		cur := scanner.Text()
 		if len(cur) > 1 {
-			cur = s.ReplaceAll(cur, "\t", "")
+			cur = s.ReplaceAll(cur, "\t", " ")
 			for {
 				cur = s.ReplaceAll(cur, "  ", " ")
 				if !s.Contains(cur, "  ") {
@@ -185,7 +191,7 @@ func parseMtl(path string) []Material {
 			}
 			for {
 				if cur == " " {
-					continue ScanLoop
+					break
 				}
 				if string(cur[0]) == " " {
 					cur = cur[1:]
@@ -195,12 +201,11 @@ func parseMtl(path string) []Material {
 			}
 			if len(cur) > 5 {
 				if cur[:6] == "newmtl" {
-					curMaterial := Material {
+					materials = append(materials, Material {
 						Name: s.Split(cur, " ")[1],
-						Color: []float32{0, 0, 0},
-						Intensity: []float32{0, 0, 0},
-					}
-					materials = append(materials, curMaterial)
+						Color: [3]float32{0, 0, 0},
+						Intensity: [3]float32{0, 0, 0},
+					})
 				} 
 			} 
 			if string(cur[0]) == "K" && string(cur[1]) == "a" {
@@ -217,7 +222,7 @@ func parseMtl(path string) []Material {
 				if err != nil {
 					log.Fatal(err)
 				}
-				materials[len(materials)-1].Color = []float32{float32(r),float32(g),float32(b)}
+				materials[len(materials)-1].Color = [3]float32{float32(r),float32(g),float32(b)}
 			} else if string(cur[0]) == "K" && string(cur[1]) == "e" {
 				curVertex := s.Split(cur, " ")[1:]
 				r, err := strconv.ParseFloat(curVertex[0], 32)
@@ -232,7 +237,7 @@ func parseMtl(path string) []Material {
 				if err != nil {
 					log.Fatal(err)
 				}
-				materials[len(materials)-1].Intensity = []float32{float32(r),float32(g),float32(b)}
+				materials[len(materials)-1].Intensity = [3]float32{float32(r),float32(g),float32(b)}
 			}
 		}
 	}

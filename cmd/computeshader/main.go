@@ -130,7 +130,7 @@ func main() {
 	gl.GenBuffers(1, &model)
 	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
 	triangles := objparser.GetTriangles(cwd + "/" + "CornellBox-Original.obj")
-	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(triangles)*4*5, unsafe.Pointer(&triangles[0]), gl.STATIC_COPY)
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(triangles)*5*3*4, unsafe.Pointer(&triangles[0]), gl.STATIC_COPY)
 	// bound to binding point 3
 	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
 

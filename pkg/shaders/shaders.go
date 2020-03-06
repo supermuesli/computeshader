@@ -142,10 +142,10 @@ const (
 					vec3 normal = normalize(cross(u, v));
 
 					// normal buffer
-					//pixel = vec3(normal + vec3(1))/2;
+					pixel = vec3(normal + vec3(1))/2;
 
 					// lambert shading
-					pixel = abs(vec3(triangles[i].color*dot(ray_dir, normal)));
+					//pixel = abs(vec3(triangles[i].color*dot(ray_dir, normal)));
 				}
 			}
 		}
