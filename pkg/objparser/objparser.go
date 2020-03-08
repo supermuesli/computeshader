@@ -7,6 +7,7 @@ import (
 	"strconv"
 	s "strings"
 	"fmt"
+	"github.com/go-gl/mathgl/mgl32"
 )
 
 type Material struct {
@@ -16,11 +17,11 @@ type Material struct {
 }
 
 type Triangle struct {
-	A         [3]float32
-	B         [3]float32
-	C         [3]float32
-	Color     [3]float32
-	Intensity [3]float32
+	A         mgl32.Vec4
+	B         mgl32.Vec4
+	C         mgl32.Vec4
+	Color     mgl32.Vec4
+	Intensity mgl32.Vec4
 }
 
 func GetTriangles(path string) []Triangle {
@@ -73,8 +74,8 @@ func GetTriangles(path string) []Triangle {
 			//fmt.Println("cur after prefix spaces", cur)
 			if len(cur) > 5  {
 				if cur[:6] == "mtllib" {
-					fmt.Println("parsing", cwd + "/" + s.Split(cur, " ")[1])
-					parsedMtls = append(parsedMtls, parseMtl(cwd + "/" + s.Split(cur, " ")[1])...)
+					fmt.Println("parsing", cwd + "/pkg/3dmodels/" + s.Split(cur, " ")[1])
+					parsedMtls = append(parsedMtls, parseMtl(cwd + "/pkg/3dmodels/" + s.Split(cur, " ")[1])...)
 
 				} else if cur[:6] == "usemtl" {
 					materialName := s.Split(cur, " ")[1]
@@ -141,21 +142,21 @@ func GetTriangles(path string) []Triangle {
 				}
 
 				triangles = append(triangles, Triangle {
-					A: [3]float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
-					B: [3]float32{vertices[i1], vertices[i1 + 1], vertices[i1 + 2]},
-					C: [3]float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
-					Color: curColor,
-					Intensity: curIntensity,
+					A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
+					B: mgl32.Vec4{vertices[i1], vertices[i1 + 1], vertices[i1 + 2], -1337},
+					C: mgl32.Vec4{vertices[i2], vertices[i2 + 1], vertices[i2 + 2], -1337},
+					Color: mgl32.Vec4{curColor[0], curColor[1], curColor[2], -1337},
+					Intensity: mgl32.Vec4{curIntensity[0], curIntensity[1], curIntensity[2], -1337},
 				})
 				
 				// triangulate quad
 				if len(curFace) == 4 {	
 					triangles = append(triangles, Triangle {
-						A: [3]float32{vertices[i0], vertices[i0 + 1], vertices[i0 + 2]},
-						B: [3]float32{vertices[i2], vertices[i2 + 1], vertices[i2 + 2]},
-						C: [3]float32{vertices[i3], vertices[i3 + 1], vertices[i3 + 2]},
-						Color: curColor,
-						Intensity: curIntensity,
+						A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
+						B: mgl32.Vec4{vertices[i2], vertices[i2 + 1], vertices[i2 + 2], -1337},
+						C: mgl32.Vec4{vertices[i3], vertices[i3 + 1], vertices[i3 + 2], -1337},
+						Color: mgl32.Vec4{curColor[0], curColor[1], curColor[2], -1337},
+						Intensity: mgl32.Vec4{curIntensity[0], curIntensity[1], curIntensity[2], -1337},
 					})
 				}
 			} 
@@ -166,6 +167,7 @@ func GetTriangles(path string) []Triangle {
 		log.Fatal(err)
 	}
 
+	fmt.Println("len(triangles)", len(triangles))
 	return triangles
 }
 

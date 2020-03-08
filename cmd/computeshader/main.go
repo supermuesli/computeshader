@@ -126,59 +126,113 @@ func main() {
 	}
 
 	// define 3d model vertices ssbo
-	var model uint32
-	gl.GenBuffers(1, &model)
-	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, model)
-	triangles := objparser.GetTriangles(cwd + "/" + "CornellBox-Original.obj")
-	gl.BufferData(gl.SHADER_STORAGE_BUFFER, len(triangles)*5*3*4, unsafe.Pointer(&triangles[0]), gl.STATIC_COPY)
+	var modelSSBO uint32
+	gl.GenBuffers(1, &modelSSBO)
+	gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, modelSSBO)
+	triangles := objparser.GetTriangles(cwd + "/pkg/3dmodels/" + "CornellBox-Original.obj")
 	// bound to binding point 3
-	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, model)
+	gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, 3, modelSSBO)
+	gl.BufferData(gl.SHADER_STORAGE_BUFFER, (len(triangles)+1)*5*4*4, unsafe.Pointer(&triangles[0]), gl.STATIC_COPY)
 
 	// color (black) that gl.Clear() is going to use
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
 
-	// define camera
-	cameraVec := []float32{100, 300, 950}
 
 	previousTime := glfw.GetTime()
 
+	// define camera
+	cameraVec := []float32{0, 300, 950}
+	
+	// more misc definitions
+	window.SetInputMode(glfw.CursorMode, glfw.CursorHidden)
+
+	samples := 1
+	curWidth, curHeight := window.GetSize()
+	cursorX, cursorY := window.GetCursorPos()
+
+	sendSamples := func() {
+		samplesLocation := gl.GetUniformLocation(computeShader, gl.Str("samples"+"\x00"))
+		gl.Uniform1i(samplesLocation, int32(samples))	
+	}
+	
+	sendWidth := func() {
+		newWidth, _ := window.GetSize()
+		if newWidth != curWidth {
+			curWidth = newWidth;
+			widthLocation := gl.GetUniformLocation(computeShader, gl.Str("width"+"\x00"))
+			gl.Uniform1f(widthLocation, float32(newWidth))
+			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, int32(curWidth), int32(curHeight), 0, gl.RGBA, gl.FLOAT, nil)
+			samples = 1
+			sendSamples()
+		}
+	}
+	
+	sendHeight := func() {
+		_, newHeight := window.GetSize()
+		if newHeight != curHeight {
+			curHeight = newHeight;
+			heightLocation := gl.GetUniformLocation(computeShader, gl.Str("height"+"\x00"))
+			gl.Uniform1f(heightLocation, float32(newHeight))
+			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, int32(curWidth), int32(curHeight), 0, gl.RGBA, gl.FLOAT, nil)
+			samples = 1
+			sendSamples()
+		}
+	}
+
+	sendCursor := func() {
+		newCursorX, newCursorY := window.GetCursorPos()
+		if newCursorX != cursorX || newCursorY != cursorY {
+			cursorX = newCursorX
+			cursorY = newCursorY
+			samples = 1
+			sendSamples()
+		}
+		cursorLocation := gl.GetUniformLocation(computeShader, gl.Str("cursor_pos"+"\x00"))
+		gl.Uniform2f(cursorLocation, float32(newCursorX), float32(newCursorY))
+	}
+
+	sendCamera := func() {
+		samples = 1
+		sendSamples()
+		camLocation := gl.GetUniformLocation(computeShader, gl.Str("cam_origin_uniform"+"\x00"))
+		gl.Uniform3f(camLocation, cameraVec[0], cameraVec[1], cameraVec[2])	
+	}
+
 	for !window.ShouldClose() {
-		// dispatch shader
 		gl.UseProgram(computeShader)
+
+		sendSamples()	
+		sendWidth()
+		sendHeight()
 
 		// poll keyboard/mouse events
 		glfw.PollEvents()
-		
-		cursorX, cursorY := window.GetCursorPos()
-		cursorLocation := gl.GetUniformLocation(computeShader, gl.Str("cursor_pos"+"\x00"))
-		gl.Uniform2f(cursorLocation, float32(cursorX), float32(cursorY))
+
+		sendCursor()
 
 		if window.GetKey(glfw.KeyW) == glfw.Press {
-			camLocation := gl.GetUniformLocation(computeShader, gl.Str("cam_origin_uniform"+"\x00"))
 			cameraVec[2] -= 50
-			gl.Uniform3f(camLocation, cameraVec[0], cameraVec[1], cameraVec[2])			
+			sendCamera()			
 		}
 		if window.GetKey(glfw.KeyS) == glfw.Press {
-			camLocation := gl.GetUniformLocation(computeShader, gl.Str("cam_origin_uniform"+"\x00"))
 			cameraVec[2] += 50
-			gl.Uniform3f(camLocation, cameraVec[0], cameraVec[1], cameraVec[2])			
+			sendCamera()						
 		}
 		if window.GetKey(glfw.KeyA) == glfw.Press {
-			camLocation := gl.GetUniformLocation(computeShader, gl.Str("cam_origin_uniform"+"\x00"))
-			cameraVec[0] -= 50
-			gl.Uniform3f(camLocation, cameraVec[0], cameraVec[1], cameraVec[2])			
+			cameraVec[0] -= 50		
+			sendCamera()	
 		}
 		if window.GetKey(glfw.KeyD) == glfw.Press {
-			camLocation := gl.GetUniformLocation(computeShader, gl.Str("cam_origin_uniform"+"\x00"))
-			cameraVec[0] += 50
-			gl.Uniform3f(camLocation, cameraVec[0], cameraVec[1], cameraVec[2])			
+			cameraVec[0] += 50		
+			sendCamera()	
 		}
 
 		// https://stackoverflow.com/questions/37136813/what-is-the-difference-between-glbindimagetexture-and-glbindtexture
 		// binds a single level of a texture to an image unit for the purpose of reading and writing it from shaders. 
 		gl.BindImageTexture(6, quadTexture, 0, false, 0, gl.READ_ONLY, gl.RGBA32F)
 
-		gl.DispatchCompute(windowWidth/32, windowHeight/8, 1)
+		curWidth, curHeight = window.GetSize()
+		gl.DispatchCompute(uint32(curWidth)/32, uint32(curHeight)/8, 1)
 
 		// make sure writing to image has finished before read
 		gl.MemoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
@@ -209,5 +263,6 @@ func main() {
 		}
 		
 		window.SwapBuffers()
+		samples += 1
 	}
 }

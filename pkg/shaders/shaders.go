@@ -25,10 +25,16 @@ const (
 	#version 450 core
 	layout(local_size_x = 32, local_size_y = 8) in;
 	
+	// image plane dimensions
+	uniform float width = 800.0;
+	uniform float height = 600.0;
+
+	uniform int samples = 1;
+
 	// texture to write to
 	layout(binding = 6, rgba32f) uniform image2D img_output;
-
-	struct triangle 
+	
+	struct Triangle 
 	{
 		vec3 a;
 		vec3 b;
@@ -40,15 +46,18 @@ const (
 	// triangles to render
 	layout(std430, binding = 3) buffer model_ssbo
 	{
-		triangle triangles[];
+		Triangle triangles[];
 	};
 
 	// camera 
 	uniform vec3 cam_origin_uniform = vec3(0, 300, 950);
-	uniform vec2 cursor_pos = vec2(800/2, 600/2);
+	uniform vec2 cursor_pos;
 	
 	// minimum "distance" to prevent self-intersection
-	const float EPSILON = 0.0000001;
+	const float EPSILON = 0.000001;
+
+
+	const float one_unit = 1;
 
 	// möller trombore triangle intersection
 	bool intersects(vec3 ray_origin, vec3 ray_dir, vec3 p0, vec3 p1, vec3 p2, out float d) {
@@ -99,15 +108,77 @@ const (
 		return (m * vec4(v, 1.0)).xyz;
 	}	
 
+	vec3 rotate_rand(vec3 v, float angle_1, float angle_2, float angle_3) {
+		return rotate(rotate(rotate(v, vec3(1,0,0), angle_1), vec3(0,1,0), angle_2), vec3(0,0,1), angle_3);
+	}
+
+	highp float rand(vec2 co)
+	{
+		highp float a = 12.9898;
+		highp float b = 78.233;
+		highp float c = 43758.5453;
+		highp float dt= dot(co.xy ,vec2(a,b));
+		highp float sn= mod(dt,3.14);
+		return 2*fract(sin(sn) * c)-1;
+	}
+
+	vec2 csh(float u, float v) {
+		float m = 1;
+		float theta = acos(pow(1-u, 1/(1+m)));
+		float phi = 2 * 3.1415926535897932 * v;
+
+		return vec2(sin(theta) * cos(phi), sin(theta) * sin(phi));
+	}
+
+	vec3 trace(vec3 ray_origin, vec3 ray_dir, int hops) {
+		vec3 col = vec3(1);
+		vec3 inten = vec3(0);
+		bool left_the_scene = true;
+		for (int hop = 0; hop < hops; ++hop) {
+			float min_d = 999999.0;
+			float d = 999999.0;
+			int closest_tri;
+			vec3 normal;
+			for (int i = 0; i < triangles.length(); i++) {
+				vec3 v0 = (height/2)*one_unit*triangles[i].a;
+				vec3 v1 = (height/2)*one_unit*triangles[i].b;
+				vec3 v2 = (height/2)*one_unit*triangles[i].c;
+				if (intersects(ray_origin, ray_dir, v0, v1, v2, d)) {
+					left_the_scene = false;
+					if (d < min_d) {
+						min_d = d;
+						normal = normalize(cross(v1 - v0, v2 - v0));
+
+						// normal buffer
+						//col = vec3(normal + vec3(1))/2;
+
+						closest_tri = i;
+					}
+				}
+			}
+
+			if (left_the_scene) {
+				break;
+			}
+
+			inten = inten + triangles[closest_tri].intensity*abs(dot(ray_dir, normal));
+			col = col * triangles[closest_tri].color;
+			ray_origin = ray_origin + min_d*ray_dir;
+			float rand_1 = rand(ray_dir.xy*samples*2.23234899874);
+			float rand_2 = rand(ray_dir.xz*samples*rand_1);
+			float rand_3 = rand(ray_dir.yz*samples*rand_2);
+			ray_dir = normalize(rotate_rand(normal, rand_1*3.1415/2, rand_2*3.1415/2, rand_3*3.1415/2));
+			
+			// account for self interesction
+			ray_origin = ray_origin + ray_dir*0.001;
+		}
+
+		return col * inten *10;
+	}
+
 	void main() {
 		// get index in global work group i.e x,y position
 		ivec2 pixel_coord = ivec2(gl_GlobalInvocationID.xy);
-		
-		// image plane dimensions
-		const float width = 800.0;
-		const float height = 600.0;
-
-		const float one_unit = 1;
 
 		// rotate camera based on cursor position
 		vec3 cam_origin = cam_origin_uniform;
@@ -115,43 +186,15 @@ const (
 		vec3 ray_dest = vec3(cam_origin.x - width/2 + pixel_coord.x, cam_origin.y - height/2 + pixel_coord.y, cam_origin.z - height);
 		vec3 ray_dir = normalize(ray_dest - cam_origin);
 		ray_dir = rotate(rotate(ray_dir, vec3(1,0,0), (2*cursor_pos.y/height) - 1), vec3(0,1,0), (2*cursor_pos.x/width) - 1);
-		
-		// (cam_origin+length(cam_origin_uniform)*vec3(2*cursor_pos.x/(1+(cursor_pos.x*cursor_pos.x)+(cursor_pos.y*cursor_pos.y)), 
-		//                     2*cursor_pos.y/(1+(cursor_pos.x*cursor_pos.x)+(cursor_pos.y*cursor_pos.y)),
-		//                     (-1+(cursor_pos.x*cursor_pos.x)+(cursor_pos.y*cursor_pos.y))/(1+(cursor_pos.x*cursor_pos.x)+(cursor_pos.y*cursor_pos.y))))
-
-		// final pixel color
-		vec3 pixel = vec3(0.0);
-		float min_d = 999999.0;
-		float d = 999999.0;
 
 		// send camera ray
-		for(int i = 0; i < triangles.length(); i++) {
-			// 3 vertex components -> 1 vertex
-			// 3 vertices		   -> 1 triangle
-			// 9 vertex components -> 1 triangle
-			vec3 v0 = (height/2)*one_unit*triangles[i].a;
-			vec3 v1 = (height/2)*one_unit*triangles[i].b;
-			vec3 v2 = (height/2)*one_unit*triangles[i].c;
-			if (intersects(cam_origin, ray_dir, v0, v1, v2, d)) {
-				if (d < min_d) {
-					min_d = d;
-					// TODO replace with actual triangle color
-					vec3 u = v1 - v0;
-					vec3 v = v2 - v0;
-					vec3 normal = normalize(cross(u, v));
-
-					// normal buffer
-					pixel = vec3(normal + vec3(1))/2;
-
-					// lambert shading
-					//pixel = abs(vec3(triangles[i].color*dot(ray_dir, normal)));
-				}
-			}
-		}
+		vec3 pixel = trace(cam_origin, ray_dir, 3) + imageLoad(img_output, pixel_coord).xyz * (samples-1); 
 		
+		// gamma correction
+		//pixel = vec3(pow(pixel.x, 1.22), pow(pixel.y, 1.22), pow(pixel.z, 1.22));
+
 		// output to a specific pixel in the texture
-		imageStore(img_output, pixel_coord, vec4(pixel, 1.0));
+		imageStore(img_output, pixel_coord, vec4(pixel/samples, 1.0));
 	}
 	` + "\x00"
 )
