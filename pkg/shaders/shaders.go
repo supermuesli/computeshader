@@ -33,6 +33,8 @@ const (
 
 	// texture to write to
 	layout(binding = 6, rgba32f) uniform image2D img_output;
+	// texture to read from
+	layout(binding = 12) uniform sampler2D img_sampler;
 	
 	struct Triangle 
 	{
@@ -56,6 +58,9 @@ const (
 	// minimum "distance" to prevent self-intersection
 	const float EPSILON = 0.000001;
 
+	// used by smartDeNoise()
+	const float INV_SQRT_OF_2PI = 0.39894228040143267793994605993439;
+	const float INV_PI = 0.31830988618379067153776752674503;
 
 	const float one_unit = 1;
 
@@ -96,11 +101,11 @@ const (
 		float s = sin(angle);
 		float c = cos(angle);
 		float oc = 1.0 - c;
-	    
-		return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
-	                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
-	                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
-	                0.0,                                0.0,                                0.0,                                1.0);
+		
+		return mat4(oc * axis.x * axis.x + c,		   oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+					oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,		   oc * axis.y * axis.z - axis.x * s,  0.0,
+					oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,		   0.0,
+					0.0,								0.0,								0.0,								1.0);
 	}
 
 	vec3 rotate(vec3 v, vec3 axis, float angle) {
@@ -128,6 +133,54 @@ const (
 		float phi = 2 * 3.1415926535897932 * v;
 
 		return vec2(sin(theta) * cos(phi), sin(theta) * sin(phi));
+	}
+
+
+	// https://github.com/BrutPitt/glslSmartDeNoise
+	//  smartDeNoise - parameters
+	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	//
+	//  sampler2D tex	  - sampler image / texture
+	//  vec2 uv		      - actual fragment coord
+	//  float sigma  >  0 - sigma Standard Deviation
+	//  float kSigma >= 0 - sigma coefficient 
+	//	  kSigma * sigma  -->  radius of the circular kernel
+	//  float threshold   - edge sharpening threshold 
+
+	vec4 smartDeNoise(sampler2D tex, vec2 uv, float sigma, float kSigma, float threshold)
+	{
+		float radius = round(kSigma*sigma);
+		float radQ = radius * radius;
+		
+		float invSigmaQx2 = .5 / (sigma * sigma);	  
+		float invSigmaQx2PI = INV_PI * invSigmaQx2;
+		
+		float invThresholdSqx2 = .5 / (threshold * threshold);
+		float invThresholdSqrt2PI = INV_SQRT_OF_2PI / threshold;
+		
+		vec4 centrPx = texture(tex,uv); 
+		
+		float zBuff = 0.0;
+		vec4 aBuff = vec4(0.0);
+		vec2 size = vec2(textureSize(tex, 0));
+		
+		for(float x=-radius; x <= radius; x++) {
+			float pt = sqrt(radQ-x*x);  // pt = yRadius: have circular trend
+			for(float y=-pt; y <= pt; y++) {
+				vec2 d = vec2(x,y)/size;
+
+				float blurFactor = exp( -dot(d , d) * invSigmaQx2 ) * invSigmaQx2;
+				
+				vec4 walkPx =  texture(tex,uv+d);
+
+				vec4 dC = walkPx-centrPx;
+				float deltaFactor = exp( -dot(dC, dC) * invThresholdSqx2) * invThresholdSqrt2PI * blurFactor;
+									 
+				zBuff += deltaFactor;
+				aBuff += deltaFactor*walkPx;
+			}
+		}
+		return aBuff/zBuff;
 	}
 
 	vec3 trace(vec3 ray_origin, vec3 ray_dir, int hops) {
@@ -193,8 +246,15 @@ const (
 		// gamma correction
 		//pixel = vec3(pow(pixel.x, 1.22), pow(pixel.y, 1.22), pow(pixel.z, 1.22));
 
+
 		// output to a specific pixel in the texture
 		imageStore(img_output, pixel_coord, vec4(pixel/samples, 1.0));
+
+		//// denoise
+//		//pixel = smartDeNoise(img_sampler, vec2(pixel_coord.x/width, pixel_coord.y/height), 3.0, 7.0, 0.15).xyz;
+//
+		//// and output to the specific pixel in the texture again
+		//imageStore(img_output, pixel_coord, vec4(pixel, 1.0));
 	}
 	` + "\x00"
 )
