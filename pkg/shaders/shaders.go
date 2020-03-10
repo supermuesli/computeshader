@@ -33,8 +33,6 @@ const (
 
 	// texture to write to
 	layout(binding = 6, rgba32f) uniform image2D img_output;
-	// texture to read from
-	layout(binding = 12) uniform sampler2D img_sampler;
 	
 	struct Triangle 
 	{
@@ -56,7 +54,7 @@ const (
 	uniform vec2 cursor_pos;
 	
 	// minimum "distance" to prevent self-intersection
-	const float EPSILON = 0.000001;
+	const float EPSILON = 0.0001;
 
 	// used by smartDeNoise()
 	const float INV_SQRT_OF_2PI = 0.39894228040143267793994605993439;
@@ -117,15 +115,46 @@ const (
 		return rotate(rotate(rotate(v, vec3(1,0,0), angle_1), vec3(0,1,0), angle_2), vec3(0,0,1), angle_3);
 	}
 
-	highp float rand(vec2 co)
-	{
-		highp float a = 12.9898;
-		highp float b = 78.233;
-		highp float c = 43758.5453;
-		highp float dt= dot(co.xy ,vec2(a,b));
-		highp float sn= mod(dt,3.14);
-		return 2*fract(sin(sn) * c)-1;
+
+	// A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
+	uint hash( uint x ) {
+		x += ( x << 10u );
+		x ^= ( x >>  6u );
+		x += ( x <<  3u );
+		x ^= ( x >> 11u );
+		x += ( x << 15u );
+		return x;
 	}
+
+
+
+	// Compound versions of the hashing algorithm I whipped together.
+	uint hash( uvec2 v ) { return hash( v.x ^ hash(v.y)						 ); }
+	uint hash( uvec3 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z)			 ); }
+	uint hash( uvec4 v ) { return hash( v.x ^ hash(v.y) ^ hash(v.z) ^ hash(v.w) ); }
+
+
+
+	// Construct a float with half-open range [0:1] using low 23 bits.
+	// All zeroes yields 0.0, all ones yields the next smallest representable value below 1.0.
+	float floatConstruct( uint m ) {
+		const uint ieeeMantissa = 0x007FFFFFu; // binary32 mantissa bitmask
+		const uint ieeeOne	  = 0x3F800000u; // 1.0 in IEEE binary32
+
+		m &= ieeeMantissa;					 // Keep only mantissa bits (fractional part)
+		m |= ieeeOne;						  // Add fractional part to 1.0
+
+		float  f = uintBitsToFloat( m );	   // Range [1:2]
+	return f - 1.0;						// Range [0:1]
+	}
+
+
+
+	// Pseudo-random value in half-open range [0:1].
+	float rand( float x ) { return 2*floatConstruct(hash(floatBitsToUint(x)))-1; }
+	float rand( vec2  v ) { return 2*floatConstruct(hash(floatBitsToUint(v)))-1; }
+	float rand( vec3  v ) { return 2*floatConstruct(hash(floatBitsToUint(v)))-1; }
+	float rand( vec4  v ) { return 2*floatConstruct(hash(floatBitsToUint(v)))-1; }
 
 	vec2 csh(float u, float v) {
 		float m = 1;
@@ -141,13 +170,13 @@ const (
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	//
 	//  sampler2D tex	  - sampler image / texture
-	//  vec2 uv		      - actual fragment coord
+	//  vec2 uv			  - actual fragment coord
 	//  float sigma  >  0 - sigma Standard Deviation
 	//  float kSigma >= 0 - sigma coefficient 
 	//	  kSigma * sigma  -->  radius of the circular kernel
 	//  float threshold   - edge sharpening threshold 
 
-	vec4 smartDeNoise(sampler2D tex, vec2 uv, float sigma, float kSigma, float threshold)
+	vec4 smartDeNoise(image2D img, ivec2 uv, float sigma, float kSigma, float threshold)
 	{
 		float radius = round(kSigma*sigma);
 		float radQ = radius * radius;
@@ -158,11 +187,11 @@ const (
 		float invThresholdSqx2 = .5 / (threshold * threshold);
 		float invThresholdSqrt2PI = INV_SQRT_OF_2PI / threshold;
 		
-		vec4 centrPx = texture(tex,uv); 
+		vec4 centrPx = imageLoad(img, uv); 
 		
 		float zBuff = 0.0;
 		vec4 aBuff = vec4(0.0);
-		vec2 size = vec2(textureSize(tex, 0));
+		vec2 size = vec2(width, height);
 		
 		for(float x=-radius; x <= radius; x++) {
 			float pt = sqrt(radQ-x*x);  // pt = yRadius: have circular trend
@@ -171,7 +200,7 @@ const (
 
 				float blurFactor = exp( -dot(d , d) * invSigmaQx2 ) * invSigmaQx2;
 				
-				vec4 walkPx =  texture(tex,uv+d);
+				vec4 walkPx =  imageLoad(img, uv+ivec2(d.x*width, d.y*height));
 
 				vec4 dC = walkPx-centrPx;
 				float deltaFactor = exp( -dot(dC, dC) * invThresholdSqx2) * invThresholdSqrt2PI * blurFactor;
@@ -217,16 +246,16 @@ const (
 			inten = inten + triangles[closest_tri].intensity*abs(dot(ray_dir, normal));
 			col = col * triangles[closest_tri].color;
 			ray_origin = ray_origin + min_d*ray_dir;
-			float rand_1 = rand(ray_dir.xy*samples*2.23234899874);
-			float rand_2 = rand(ray_dir.xz*samples*rand_1);
-			float rand_3 = rand(ray_dir.yz*samples*rand_2);
+			float rand_1 = rand(ray_dir.xy*samples);
+			float rand_2 = rand(ray_dir.xz*samples);
+			float rand_3 = rand(ray_dir.yz*samples);
 			ray_dir = normalize(rotate_rand(normal, rand_1*3.1415/2, rand_2*3.1415/2, rand_3*3.1415/2));
 			
 			// account for self interesction
 			ray_origin = ray_origin + ray_dir*0.001;
 		}
 
-		return col * inten *10;
+		return col * inten * 5;
 	}
 
 	void main() {
@@ -250,10 +279,10 @@ const (
 		// output to a specific pixel in the texture
 		imageStore(img_output, pixel_coord, vec4(pixel/samples, 1.0));
 
-		//// denoise
-//		//pixel = smartDeNoise(img_sampler, vec2(pixel_coord.x/width, pixel_coord.y/height), 3.0, 7.0, 0.15).xyz;
-//
-		//// and output to the specific pixel in the texture again
+		// denoise
+		//pixel = smartDeNoise(img_output, pixel_coord, 3.0, 7.0, 0.15).xyz;
+
+		// and output to the specific pixel in the texture again
 		//imageStore(img_output, pixel_coord, vec4(pixel, 1.0));
 	}
 	` + "\x00"

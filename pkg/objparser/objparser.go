@@ -142,9 +142,9 @@ func GetTriangles(path string) []Triangle {
 				}
 
 				triangles = append(triangles, Triangle {
-					A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
-					B: mgl32.Vec4{vertices[i1], vertices[i1 + 1], vertices[i1 + 2], -1337},
 					C: mgl32.Vec4{vertices[i2], vertices[i2 + 1], vertices[i2 + 2], -1337},
+					B: mgl32.Vec4{vertices[i1], vertices[i1 + 1], vertices[i1 + 2], -1337},
+					A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
 					Color: mgl32.Vec4{curColor[0], curColor[1], curColor[2], -1337},
 					Intensity: mgl32.Vec4{curIntensity[0], curIntensity[1], curIntensity[2], -1337},
 				})
@@ -152,9 +152,9 @@ func GetTriangles(path string) []Triangle {
 				// triangulate quad
 				if len(curFace) == 4 {	
 					triangles = append(triangles, Triangle {
-						A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
-						B: mgl32.Vec4{vertices[i2], vertices[i2 + 1], vertices[i2 + 2], -1337},
 						C: mgl32.Vec4{vertices[i3], vertices[i3 + 1], vertices[i3 + 2], -1337},
+						B: mgl32.Vec4{vertices[i2], vertices[i2 + 1], vertices[i2 + 2], -1337},
+						A: mgl32.Vec4{vertices[i0], vertices[i0 + 1], vertices[i0 + 2], -1337},
 						Color: mgl32.Vec4{curColor[0], curColor[1], curColor[2], -1337},
 						Intensity: mgl32.Vec4{curIntensity[0], curIntensity[1], curIntensity[2], -1337},
 					})
