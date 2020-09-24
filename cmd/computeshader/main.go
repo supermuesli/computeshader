@@ -1,5 +1,11 @@
 package main
 
+// helpful links
+// https://github.com/go-gl/glfw/blob/master/v3.2/glfw/input.go
+// https://github.com/inkyblackness/imgui-go-examples/blob/master/cmd/example_glfw_opengl3/main.go
+// https://bheisler.github.io/post/writing-gpu-accelerated-path-tracer-part-2/
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/global-illumination-path-tracing/global-illumination-path-tracing-practical-implementation
+
 import (
 	"github.com/go-gl/gl/v4.5-core/gl"
 	"github.com/go-gl/glfw/v3.2/glfw"
