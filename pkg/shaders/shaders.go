@@ -246,10 +246,10 @@ const (
 			inten = inten + triangles[closest_tri].intensity*abs(dot(ray_dir, normal));
 			col = col * triangles[closest_tri].color;
 			ray_origin = ray_origin + min_d*ray_dir;
-			float rand_1 = rand(ray_dir.xy*samples);
-			float rand_2 = rand(ray_dir.xz*samples);
-			float rand_3 = rand(ray_dir.yz*samples);
-			ray_dir = normalize(rotate_rand(normal, rand_1*3.1415/2, rand_2*3.1415/2, rand_3*3.1415/2));
+			float rand_1 = rand(ray_dir.z+samples);
+			float rand_2 = rand(ray_dir.y-samples);
+			float rand_3 = rand(ray_dir.x*samples);
+			ray_dir = normalize(rotate_rand(normal, rand_1, rand_2, rand_3));
 			
 			// account for self interesction
 			ray_origin = ray_origin + ray_dir*0.001;
